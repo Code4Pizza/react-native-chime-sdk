@@ -27,7 +27,6 @@ class RosterModel: NSObject {
     }
 
     func addAttendees(_ newAttendees: [RosterAttendee]) {
-        print("+++ add attendees")
         if newAttendees.isEmpty {
             return
         }
@@ -62,6 +61,13 @@ class RosterModel: NSObject {
             return nil
         }
         return attendees[index]
+    }
+    
+    func getAttendee(attendeeId: String) -> RosterAttendee? {
+        guard let attendee = currentRoster[attendeeId] else {
+            return nil
+        }
+        return attendee
     }
 
     func updateVolume(attendeeId: String, volume: VolumeLevel) {

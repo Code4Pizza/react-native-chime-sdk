@@ -62,7 +62,6 @@ class JoinRequestService: NSObject {
         let jsonDecoder = JSONDecoder()
         do {
             let joinMeetingResponse = try jsonDecoder.decode(JoinMeetingResponse.self, from: data)
-            print("+++ response \(joinMeetingResponse)")
             let meetingResp = getCreateMeetingResponse(from: joinMeetingResponse)
             let attendeeResp = getCreateAttendeeResponse(from: joinMeetingResponse)
             return MeetingSessionConfiguration(createMeetingResponse: meetingResp,

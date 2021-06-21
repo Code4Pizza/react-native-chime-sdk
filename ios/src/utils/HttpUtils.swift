@@ -28,7 +28,6 @@ class HttpUtils {
                                         jsonData: Data?,
                                         logger: Logger?,
                                         completion: @escaping CompletionFunc) {
-        print("+++ make request \(url) \(jsonData)")
         guard let serverUrl = URL(string: url) else {
             logger?.error(msg: "Unable to parse Url please make sure check Url")
             return

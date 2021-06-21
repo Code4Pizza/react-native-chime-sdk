@@ -65,7 +65,6 @@ RCT_EXPORT_MODULE(RNChimeVideoView)
 - (UIView *)view
 {
     RNChimeView *view = [[RNChimeView alloc] initWithFrame:CGRectZero];
-    view.backgroundColor = UIColor.blueColor;
     return view;
 }
 

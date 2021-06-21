@@ -45,7 +45,8 @@ class MeetingModel: NSObject {
                                                          cameraCaptureSource: videoModel.customSource)
     let uuid = UUID()
     var call: Call?
-
+    var mapUserAudioState = [String:Int]()
+    
     // States
     var isAppInBackground: Bool = false {
         didSet {
@@ -426,8 +427,28 @@ extension MeetingModel: RealtimeObserver {
     func attendeesDidLeave(attendeeInfo: [AttendeeInfo]) {
         logAttendee(attendeeInfo: attendeeInfo, action: "Left")
         removeAttendeesAndReload(attendeeInfo: attendeeInfo)
+        for currentAttendeeInfo in attendeeInfo {
+            let attendeeId = currentAttendeeInfo.attendeeId
+            let attendeeName = RosterModel.convertAttendeeName(from: currentAttendeeInfo)
+            MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+                "event": "sinkMeetingUserLeft",
+                "userID": attendeeId,
+                "userName": attendeeName,
+                "audioStatus": self.getAudioStatus(attendeeId),
+                "videoStatus": self.getVideoStatus(attendeeId),
+            ])
+        }
     }
-
+    func getVideoStatus(_ attendeeId: String) -> Int {
+        if let _ = videoModel.getRemoteVideoTileState(attendeeId) {
+            return 1
+        }
+        return 0
+    }
+    func getAudioStatus(_ attendeeId: String) -> Int {
+        let audio = self.mapUserAudioState[attendeeId] ?? 0
+        return audio
+    }
     func attendeesDidDrop(attendeeInfo: [AttendeeInfo]) {
         for attendee in attendeeInfo {
             notify(msg: "\(attendee.externalUserId) dropped")
@@ -438,15 +459,49 @@ extension MeetingModel: RealtimeObserver {
 
     func attendeesDidMute(attendeeInfo: [AttendeeInfo]) {
         logAttendee(attendeeInfo: attendeeInfo, action: "Muted")
+        for attendee in attendeeInfo {
+            let attendeeId = attendee.attendeeId
+            let oldValue = self.mapUserAudioState[attendeeId] ?? -2
+            let newValue = 0
+            if oldValue != newValue {
+                self.mapUserAudioState[attendeeId] = newValue != -1 ? 1 : 0
+                self.sendAudioEvent(attendeeId)
+            }
+        }
     }
 
     func attendeesDidUnmute(attendeeInfo: [AttendeeInfo]) {
         logAttendee(attendeeInfo: attendeeInfo, action: "Unmuted")
+        for attendee in attendeeInfo {
+            let attendeeId = attendee.attendeeId
+            let oldValue = self.mapUserAudioState[attendeeId] ?? -2
+            let newValue = 1
+            if oldValue != newValue {
+                self.mapUserAudioState[attendeeId] = newValue != -1 ? 1 : 0
+                self.sendAudioEvent(attendeeId)
+            }
+        }
     }
-
+    func sendAudioEvent(_ attendeeId:String) {
+        if let attendee = self.rosterModel.getAttendee(attendeeId: attendeeId) {
+            MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+                "event": "sinkMeetingAudioStatusChange",
+                "userID": attendeeId,
+                "userName": attendee.attendeeName ?? "",
+                "audioStatus": self.getAudioStatus(attendeeId),
+                "videoStatus": self.getVideoStatus(attendeeId),
+            ])
+        }
+    }
     func volumeDidChange(volumeUpdates: [VolumeUpdate]) {
         for currentVolumeUpdate in volumeUpdates {
             let attendeeId = currentVolumeUpdate.attendeeInfo.attendeeId
+            let oldValue = self.mapUserAudioState[attendeeId] ?? -2
+            let newValue = currentVolumeUpdate.volumeLevel.rawValue != -1 ? 1 : 0
+            if oldValue != newValue {
+                self.mapUserAudioState[attendeeId] = newValue != -1 ? 1 : 0
+                self.sendAudioEvent(attendeeId)
+            }
             rosterModel.updateVolume(attendeeId: attendeeId, volume: currentVolumeUpdate.volumeLevel)
         }
         if activeMode == .roster {
@@ -468,10 +523,19 @@ extension MeetingModel: RealtimeObserver {
     func attendeesDidJoin(attendeeInfo: [AttendeeInfo]) {
         var newAttendees = [RosterAttendee]()
         for currentAttendeeInfo in attendeeInfo {
-            print("+++ attendeesDidJoin \(currentAttendeeInfo.externalUserId)");
             let attendeeId = currentAttendeeInfo.attendeeId
             if !rosterModel.contains(attendeeId: attendeeId) {
                 let attendeeName = RosterModel.convertAttendeeName(from: currentAttendeeInfo)
+                MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+                    "event": "sinkMeetingUserJoin",
+                    "userID": attendeeId,
+                    "userName": attendeeName,
+                    "audioStatus": self.getAudioStatus(attendeeId),
+                    "videoStatus": self.getVideoStatus(attendeeId),
+                ])
+                if attendeeName == self.selfName {
+                    MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: ["des": "meeting_ready"])
+                }
                 let newAttendee = RosterAttendee(attendeeId: attendeeId,
                                                  attendeeName: attendeeName,
                                                  volume: .notSpeaking,
@@ -525,8 +589,9 @@ extension MeetingModel: DeviceChangeObserver {
 
 extension MeetingModel: VideoTileObserver {
     func videoTileDidAdd(tileState: VideoTileState) {
-        logger.info(msg: "+++ Attempting to add video tile tileId: \(tileState.tileId)" +
+        logger.info(msg: "Attempting to add video tile tileId: \(tileState.tileId)" +
             " attendeeId: \(tileState.attendeeId) with size \(tileState.videoStreamContentWidth)*\(tileState.videoStreamContentHeight)")
+                       
         if tileState.isContent {
             screenShareModel.tileId = tileState.tileId
             if activeMode == .screenShare {
@@ -540,11 +605,11 @@ extension MeetingModel: VideoTileObserver {
                 }
                 videoModel.addRemoteVideoTileState(tileState, completion: { success in
                     if success {
-                        if self.activeMode == .video {                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                        if self.activeMode == .video {                            //self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
                             self.videoModel.videoUpdatedHandler?()
                         } else {
                             // Currently not in the video view, no need to render the video tile
-                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                            //self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
                         }
                     } else {
                         self.logger.info(msg: "Cannot add more video tile tileId: \(tileState.tileId)")
@@ -558,17 +623,29 @@ extension MeetingModel: VideoTileObserver {
 //                            if !self.videoModel.isRemoteVideoDisplaying(tileId: tileState.tileId) {
 //                                self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
 //                            }
-                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                            //self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
                             self.videoModel.videoUpdatedHandler?()
                         } else {
                             // Currently not in the video view, no need to render the video tile
-                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                           //self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
                         }
                     } else {
                         self.logger.info(msg: "Cannot add more video tile tileId: \(tileState.tileId)")
                     }
                 })
             }
+        }
+        if let attendee = self.rosterModel.getAttendee(attendeeId: tileState.attendeeId) {
+            MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+                "event": "sinkMeetingVideoStatusChange",
+                "userID": tileState.attendeeId,
+                "userName": attendee.attendeeName ?? "",
+                "audioStatus": self.getAudioStatus(tileState.attendeeId),
+                "videoStatus": self.getVideoStatus(tileState.attendeeId),
+            ])
+        }
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: Notification.Name("onUserVideoStatusChangedChime"), object: nil, userInfo: ["userID" : tileState.attendeeId])
         }
     }
 
@@ -608,6 +685,18 @@ extension MeetingModel: VideoTileObserver {
                     self.logger.error(msg: "Cannot remove unexisting remote video tile for tileId: \(tileState.tileId)")
                 }
             })
+        }
+        if let attendee = self.rosterModel.getAttendee(attendeeId: tileState.attendeeId) {
+            MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+                "event": "sinkMeetingVideoStatusChange",
+                "userID": tileState.attendeeId,
+                "userName": attendee.attendeeName ?? "",
+                "audioStatus": self.getAudioStatus(tileState.attendeeId),
+                "videoStatus": self.getVideoStatus(tileState.attendeeId),
+            ])
+        }
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: Notification.Name("onUserVideoStatusChangedChime"), object: nil, userInfo: ["userID" : tileState.attendeeId])
         }
     }
 

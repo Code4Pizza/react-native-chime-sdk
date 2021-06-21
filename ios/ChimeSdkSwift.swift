@@ -1,10 +1,5 @@
-@objc(ChimeSdk)
-class ChimeSdk: NSObject {
-
-    @objc(multiply:withB:withResolver:withRejecter:)
-    func multiply(a: Float, b: Float, resolve:RCTPromiseResolveBlock,reject:RCTPromiseRejectBlock) -> Void {
-        resolve(a*b)
-    }
+@objc(ChimeSdkSwift)
+class ChimeSdkSwift: NSObject {
     
     @objc(getJsonMeeting:withUserName:withResolver:withRejecter:)
     func getJsonMeeting(meetingId: String, userName: String, resolve: @escaping RCTPromiseResolveBlock, reject:RCTPromiseRejectBlock) -> Void {
@@ -13,15 +8,15 @@ class ChimeSdk: NSObject {
         }
     }
     
-    @objc(startMeeting:withResolver:withRejecter:)
-    func startMeeting(json: [String:Any], resolve: @escaping RCTPromiseResolveBlock, reject:RCTPromiseRejectBlock) -> Void {
-        MeetingModule.shared().prepareMeetingWithJson(json: json, option: .disabled) { (success) in
+    @objc(joinMeeting:completion:)
+    func joinMeeting(json: [String:Any], resolve: @escaping RCTPromiseResolveBlock) -> Void {
+        MeetingModule.shared().prepareMeetingWithJson(json: json) { (success) in
             resolve(success)
         }
     }
     
-    @objc(endActiveMeeting)
-    func endActiveMeeting() -> Void {
+    @objc(leaveCurrentMeeting)
+    func leaveCurrentMeeting() -> Void {
         MeetingModule.shared().endActiveMeeting {            
         }
     }

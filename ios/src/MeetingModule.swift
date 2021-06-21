@@ -12,13 +12,16 @@ import UIKit
 
 let incomingCallKitDelayInSeconds = 10.0
 
-class MeetingModule {
+@objc(MeetingModule)
+class MeetingModule: NSObject {
     private static var sharedInstance: MeetingModule?
     private(set) var activeMeeting: MeetingModel?
     private let meetingPresenter = MeetingPresenter()
     private var meetings: [UUID: MeetingModel] = [:]
     private let logger = ConsoleLogger(name: "MeetingModule")
-
+    public weak var eventEmitter: RCTEventEmitter?
+    
+    @objc(shared)
     static func shared() -> MeetingModule {
         if sharedInstance == nil {
             sharedInstance = MeetingModule()
@@ -28,7 +31,7 @@ class MeetingModule {
         }
         return sharedInstance!
     }
-
+    
     func prepareMeeting(meetingId: String,
                         selfName: String,
                         option: CallKitOption,
@@ -40,7 +43,7 @@ class MeetingModule {
                 return
             }
             JoinRequestService.postJoinRequest(meetingId: meetingId, name: selfName, overriddenEndpoint: overriddenEndpoint) { (json) in
-                self.prepareMeetingWithJson(json: json, option: option, completion: completion)
+                self.prepareMeetingWithJson(json: json, completion: completion)
             }
         }
     }
@@ -60,8 +63,78 @@ class MeetingModule {
             }
         }
     }
-
-    func prepareMeetingWithJson(json: [String:Any]?, option: CallKitOption, completion: @escaping (Bool) -> Void) {
+    @objc(setRCTEventEmitter:)
+    func setRCTEventEmitter(eventEmitter: RCTEventEmitter?) {
+        self.eventEmitter = eventEmitter
+    }
+    @objc(onMyAudio)
+    func onMyAudio() {
+        activeMeeting?.setMute(isMuted: false)
+    }
+    
+    @objc(offMyAudio)
+    func offMyAudio() {
+        activeMeeting?.setMute(isMuted: true)
+    }
+    
+    @objc(onOffMyVideo)
+    func onOffMyVideo() {
+        if let activeMeeting = self.activeMeeting {
+            activeMeeting.videoModel.isLocalVideoActive = !activeMeeting.videoModel.isLocalVideoActive
+        }
+    }
+    
+    @objc(getParticipants:)
+    func getParticipants(completion: ([[String:Any]]) -> Void) {
+        if let activeMeeting = self.activeMeeting {
+            var list = [[String:Any]]()
+            for i in 0..<activeMeeting.rosterModel.getTotalAttendee() {
+                if let member = activeMeeting.rosterModel.getAttendee(at: i) {
+                    list.append([
+                        "userName": member.attendeeName ?? "",
+                        "userID": member.attendeeId,
+                        "audioStatus": activeMeeting.getAudioStatus(member.attendeeId),
+                        "videoStatus": activeMeeting.getVideoStatus(member.attendeeId),
+                    ]);
+                }
+            }
+            completion(list)
+        }
+    }
+    
+    @objc(getUserInfo:completion:)
+    func getUserInfo(userId:String, completion: ([String:Any]) -> Void) {
+        if let activeMeeting = self.activeMeeting {
+            if let info = activeMeeting.rosterModel.getAttendee(attendeeId: userId) {
+                completion([
+                    "userName": info.attendeeName ?? "",
+                    "userID": info.attendeeId,
+                    "audioStatus": activeMeeting.getAudioStatus(info.attendeeId),
+                    "videoStatus": activeMeeting.getVideoStatus(info.attendeeId),
+                ])
+            }
+            else {
+                completion([
+                    "userName": "",
+                    "userID": userId,
+                    "audioStatus": 1,
+                    "videoStatus": 1,
+                ])
+            }
+        }
+        else {
+            completion([
+                "userName": "",
+                "userID": userId,
+                "audioStatus": 1,
+                "videoStatus": 1,
+            ])
+        }
+    }
+    
+    @objc(prepareMeetingWithJson:completion:)
+    func prepareMeetingWithJson(json: [String:Any]?, completion: @escaping (Bool) -> Void) {
+        let option = CallKitOption.disabled
         requestRecordPermission { success in
             guard success else {
                 completion(false)
@@ -83,7 +156,6 @@ class MeetingModule {
                 let meetingId = meetingSessionConfig.externalMeetingId ?? "123456"
                 let externalUserIdArray = meetingSessionConfig.credentials.externalUserId.components(separatedBy: "#")
                 let selfName: String = externalUserIdArray.count >= 2 ? externalUserIdArray[1] : meetingSessionConfig.credentials.externalUserId
-                print("+++ ok meetingId \(meetingId) - \(selfName)")
                 let meetingModel = MeetingModel(meetingSessionConfig: meetingSessionConfig,
                                                 meetingId: meetingId,
                                                 selfName: selfName,
@@ -139,7 +211,6 @@ class MeetingModule {
         activeMeeting.deviceSelectionModel = deviceSelectionModel
         // Phunv
         activeMeeting.startMeeting()
-        activeMeeting.videoModel.isLocalVideoActive = true
 //        meetingPresenter.dismissActiveMeetingView {
 //            self.meetingPresenter.showMeetingView(meetingModel: activeMeeting) { _ in }
 //        }
@@ -160,6 +231,7 @@ class MeetingModule {
         return meetings[uuid]
     }
 
+    @objc(endActiveMeeting:)
     func endActiveMeeting(completion: @escaping () -> Void) {
         if let activeMeeting = activeMeeting {
             activeMeeting.endMeeting()
