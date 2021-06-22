@@ -1,9 +1,67 @@
-import { NativeModules } from 'react-native';
-
-type ChimeSdkType = {
-  multiply(a: number, b: number): Promise<number>;
-};
+import React from 'react';
+import {
+  NativeModules,
+  requireNativeComponent,
+  NativeEventEmitter,
+} from 'react-native';
 
 const { ChimeSdk } = NativeModules;
+const NativeChimeView = requireNativeComponent('ChimeVideoView');
+const eventEmitter = new NativeEventEmitter(ChimeSdk);
 
-export default ChimeSdk as ChimeSdkType;
+export const initSdk = () => { };
+
+export const joinMeeting = (meetingInfo: object) => {
+  ChimeSdk.joinMeeting(meetingInfo);
+};
+
+export const leaveCurrentMeeting = () => {
+  ChimeSdk.leaveCurrentMeeting();
+};
+
+export const onMyAudio = () => {
+  ChimeSdk.onMyAudio();
+};
+
+export const offMyAudio = () => {
+  ChimeSdk.offMyAudio();
+};
+
+export const onOffMyVideoZoom = () => {
+  ChimeSdk.onOffMyVideo();
+};
+export const switchCameraZoom = () => { };
+
+export const getParticipants = () => {
+  return new Promise((res) => {
+    ChimeSdk.getParticipants((members: any) => {
+      return res({ error: false, members });
+    });
+  });
+};
+
+export const getUserInfo = (userID: string) => {
+  return new Promise((res) => {
+    ChimeSdk.getUserInfo(userID, (info: any) => {
+      return res({ error: false, info });
+    });
+  });
+};
+
+export const onEventListenerZoom = (onEvent = () => { }) => {
+  eventEmitter.addListener('onChimeMeetingEvent', onEvent);
+};
+
+export const removeListenerZoom = () => {
+  eventEmitter.removeAllListeners('onChimeMeetingEvent');
+};
+
+export const ChimeView = (props: any) => {
+  return (
+    <NativeChimeView
+      // @ts-ignore
+      style={props.style}
+      userID={props.userID}
+    />
+  );
+};
