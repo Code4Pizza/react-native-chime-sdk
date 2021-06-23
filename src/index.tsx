@@ -27,10 +27,10 @@ export const offMyAudio = () => {
   ChimeSdk.offMyAudio();
 };
 
-export const onOffMyVideoZoom = () => {
+export const onOffMyVideo = () => {
   ChimeSdk.onOffMyVideo();
 };
-export const switchCameraZoom = () => { };
+export const switchCamera = () => { };
 
 export const getParticipants = () => {
   return new Promise((res) => {
@@ -48,15 +48,15 @@ export const getUserInfo = (userID: string) => {
   });
 };
 
-export const onEventListenerZoom = (onEvent = () => { }) => {
+export const onEventListener = (onEvent = () => { }) => {
   eventEmitter.addListener('onChimeMeetingEvent', onEvent);
 };
 
-export const removeListenerZoom = () => {
+export const removeListener = () => {
   eventEmitter.removeAllListeners('onChimeMeetingEvent');
 };
 
-export const ChimeView = (props: any) => {
+const RNChimeView = (props: any) => {
   return (
     <NativeChimeView
       // @ts-ignore
@@ -65,3 +65,5 @@ export const ChimeView = (props: any) => {
     />
   );
 };
+
+export default RNChimeView;

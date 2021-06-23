@@ -15,7 +15,6 @@ public class EventEmitter {
   public static final String MEETING_USER_LEFT = "sinkMeetingUserLeft";
   public static final String MEETING_ACTIVE_SHARE = "sinkMeetingActiveShare";
   public static final String MEETING_AUDIO_STATUS_CHANGE = "onSinkMeetingAudioStatusChange";
-  ;
   public static final String MEETING_VIDEO_STATUS_CHANGE = "onSinkMeetingVideoStatusChange";
 
   public static final String KEY_EVENT = "event";
@@ -33,12 +32,18 @@ public class EventEmitter {
   }
 
   public static void sendMeetingUserEvent(ReactContext context, String event, RosterAttendee attendee) {
+    sendMeetingUserEvent(context, event, attendee, null);
+  }
+
+  public static void sendMeetingUserEvent(ReactContext context, String event, RosterAttendee attendee, Boolean isCameraOn) {
     WritableMap map = new WritableNativeMap();
     map.putString(KEY_EVENT, event);
     map.putString(KEY_USER_ID, attendee.getAttendeeId());
     map.putString(KEY_USER_NAME, attendee.getAttendeeName());
     map.putBoolean(KEY_AUDIO_STATUS, attendee.isMuted());
-    // map.putBoolean(KEY_VIDEO_STATUS, attendee.isCameraOn)
+    if (isCameraOn != null) {
+      map.putBoolean(KEY_VIDEO_STATUS, isCameraOn);
+    }
     sendEvent(context, map);
   }
 

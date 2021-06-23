@@ -20,6 +20,9 @@ public class Api {
   private static final String TAG = "Api";
 
   public static String requestCreateSession(String meetingUrl, String meetingId, String attendeeName) {
+    if (meetingUrl == null || meetingId == null || attendeeName == null) {
+      return null;
+    }
     HttpURLConnection urlConnection = null;
     try {
       URL serverUrl = new URL(meetingUrl + "join?" +
@@ -60,6 +63,12 @@ public class Api {
     return new MeetingSessionConfiguration(
       new CreateMeetingResponse(joinMeetingResponse.joinInfo.meetingResponse.meeting),
       new CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee));
+  }
+
+  public static MeetingSessionConfiguration createSession(JoinMeetingResponse response) {
+    return new MeetingSessionConfiguration(
+      new CreateMeetingResponse(response.joinInfo.meetingResponse.meeting),
+      new CreateAttendeeResponse(response.joinInfo.attendeeResponse.attendee));
   }
 
 }
