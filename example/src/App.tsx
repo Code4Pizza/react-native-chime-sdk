@@ -23,7 +23,6 @@ import {
 } from 'react-native-chime-sdk';
 
 export default function App() {
-
   const [status, setStatus] = useState('Idle');
 
   const [map, setMap] = useState(new Map());
@@ -54,7 +53,7 @@ export default function App() {
       if (data.event === 'sinkMeetingUserJoin') {
         console.log(data.event + ' : ' + data.userID);
         if (!userList.includes(data.userID)) {
-          setUserList(old => {
+          setUserList((old) => {
             return [data].concat(old);
             // return [...old, data.userID];
           });
@@ -63,11 +62,10 @@ export default function App() {
 
       if (data.event === 'sinkMeetingUserLeft') {
         console.log(data.event + ' : ' + data.userID);
-        setUserList(old => {
-          return old.filter(item => item.userID !== data.userID);
+        setUserList((old) => {
+          return old.filter((item) => item.userID !== data.userID);
         });
       }
-
     });
     return () => {
       removeListenerZoom;
@@ -76,8 +74,8 @@ export default function App() {
 
   const join = () => {
     joinMeeting({
-      meetingUrl: 'http://e327b55940fa.ngrok.io/',
-      meetingId: 'abcdskokokosssssss',
+      meetingUrl: 'http://de0671673fc8.ngrok.io/',
+      meetingId: 'klplpp',
       attendeeName: 'The Anh',
     });
   };
@@ -105,12 +103,16 @@ export default function App() {
   return (
     <View style={styles.container}>
       {/* <Text>Result: {result}</Text> */}
-      <Button title="Join" onPress={join} />
-      <View style={{ height: 20 }} />
-      <Button title="Leave" onPress={leave} />
-      <View style={{ height: 20 }} />
+      <View style={[{ width: '90%', margin: 5, backgroundColor: 'red' }]}>
+        <Button title="Join" onPress={join} color="#FFAa00" />
+      </View>
+      <View style={{ height: 5 }} />
+      <View style={[{ width: '90%', margin: 5, backgroundColor: 'red' }]}>
+        <Button title="Leave" onPress={leave} color="#FF3D00" />
+      </View>
+      <View style={{ height: 5 }} />
       <Button title="Get party" onPress={getParty} />
-      <View style={{ height: 20 }} />
+      <View style={{ height: 5 }} />
       <Text style={{ color: '#f44336' }}>{status}</Text>
       <FlatList
         horizontal={true}
