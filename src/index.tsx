@@ -9,7 +9,7 @@ const { ChimeSdk } = NativeModules;
 const NativeChimeView = requireNativeComponent('ChimeVideoView');
 const eventEmitter = new NativeEventEmitter(ChimeSdk);
 
-export const initSdk = () => { };
+export const initSdk = () => {};
 
 export const joinMeeting = (meetingInfo: object) => {
   ChimeSdk.joinMeeting(meetingInfo);
@@ -30,7 +30,7 @@ export const offMyAudio = () => {
 export const onOffMyVideo = () => {
   ChimeSdk.onOffMyVideo();
 };
-export const switchCamera = () => { };
+export const switchCamera = () => {};
 
 export const getParticipants = () => {
   return new Promise((res) => {
@@ -48,7 +48,7 @@ export const getUserInfo = (userID: string) => {
   });
 };
 
-export const onEventListener = (onEvent = () => { }) => {
+export const onEventListener = (onEvent = () => {}) => {
   eventEmitter.addListener('onChimeMeetingEvent', onEvent);
 };
 

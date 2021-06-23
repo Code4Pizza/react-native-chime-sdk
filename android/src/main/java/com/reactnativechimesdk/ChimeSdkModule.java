@@ -62,6 +62,7 @@ import static com.reactnativechimesdk.EventEmitter.MEETING_VIDEO_STATUS_CHANGE;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingStateEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingUserEvent;
 import static com.reactnativechimesdk.response.Api.createSession;
+import static com.reactnativechimesdk.response.Api.requestCreateSession;
 import static com.reactnativechimesdk.utils.Util.getAttendeeName;
 
 public class ChimeSdkModule extends ReactContextBaseJavaModule
@@ -123,6 +124,13 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     try {
       JSONObject object = Util.convertMapToJson(map);
       joinMeetingResponse = gson.fromJson(object.toString(), JoinMeetingResponse.class);
+      if (joinMeetingResponse.joinInfo == null) {
+        String url = map.getString("meetingUrl");
+        String id = map.getString("meetingId");
+        String name = map.getString("attendeeName");
+        String rs = requestCreateSession(url, id, name);
+        joinMeetingResponse = gson.fromJson(rs, JoinMeetingResponse.class);
+      }
     } catch (JSONException e) {
       Log.e(TAG, "Failed to create meeting response", e);
       return;
@@ -148,6 +156,10 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   private void joinMeeting() {
     if (joinMeetingResponse != null) {
       MeetingSessionConfiguration config = createSession(joinMeetingResponse);
+      if (config == null) {
+        showToast("Failed to join meeting");
+        return;
+      }
       MeetingSession meetingSession = new DefaultMeetingSession(config, logger, getReactApplicationContext(), new DefaultEglCoreFactory());
       MeetingModel.getInstance().setMeetingSession(meetingSession);
       MeetingModel.getInstance().getAudioVideo().addRealtimeObserver(this);

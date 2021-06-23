@@ -10,16 +10,12 @@ import {
   FlatList,
 } from 'react-native';
 
-import {
-  ChimeView,
+import RNChimeView, {
   joinMeeting,
   leaveCurrentMeeting,
-  onMyAudio,
-  offMyAudio,
   getParticipants,
-  getUserInfo,
-  onEventListenerZoom,
-  removeListenerZoom,
+  onEventListener,
+  removeListener,
 } from 'react-native-chime-sdk';
 
 export default function App() {
@@ -29,12 +25,14 @@ export default function App() {
   const [userList, setUserList] = useState([]);
 
   useEffect(() => {
-    onEventListenerZoom(async (data) => {
+    // @ts-ignore
+    onEventListener(async (data) => {
       if (data.event === 'meetingStateChange') {
         setStatus(data.des);
         if (data.des === 'meeting_ready') {
           console.log('In meeting, get participants');
           let rs = await getParticipants();
+          // @ts-ignore
           let list = [...rs.members];
           // for (let i = 0; i < 5; i++) {
           //   list.push({
@@ -42,6 +40,7 @@ export default function App() {
           //     userName: 'RossBlueBerry',
           //   });
           // }
+          // @ts-ignore
           setUserList(list);
         }
         if (data.des === 'idle') {
@@ -52,7 +51,9 @@ export default function App() {
 
       if (data.event === 'sinkMeetingUserJoin') {
         console.log(data.event + ' : ' + data.userID);
+        // @ts-ignore
         if (!userList.includes(data.userID)) {
+          // @ts-ignore
           setUserList((old) => {
             return [data].concat(old);
             // return [...old, data.userID];
@@ -63,12 +64,13 @@ export default function App() {
       if (data.event === 'sinkMeetingUserLeft') {
         console.log(data.event + ' : ' + data.userID);
         setUserList((old) => {
+          // @ts-ignore
           return old.filter((item) => item.userID !== data.userID);
         });
       }
     });
     return () => {
-      removeListenerZoom;
+      removeListener;
     };
   }, []);
 
@@ -86,15 +88,18 @@ export default function App() {
 
   const getParty = async () => {
     let data = await getParticipants();
+    // @ts-ignore
     data.members.forEach((user) => {
       console.log(user.userID + '-' + user.userName);
     });
     // etUserList(data.members);
   };
 
+  // @ts-ignore
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const onViewableItemChanged = useRef(({ viewableItems, changed }) => {
     let maps = new Map();
-    viewableItems.map((item) => {
+    viewableItems.map((item: { index: any }) => {
       maps.set(item.index, true);
     });
     setMap(maps);
@@ -120,6 +125,7 @@ export default function App() {
         data={userList}
         renderItem={({ item, index }) => (
           <TouchableOpacity
+            // @ts-ignore
             key={item.userID}
             onPress={async () => {
               // let { info } = await getUserInfoZoom(item.userID);
@@ -135,13 +141,15 @@ export default function App() {
                 margin: 16,
               }}
             >
-              <ChimeView
+              <RNChimeView
                 style={{ width: 120, height: 120, borderRadius: 30 }}
+                // @ts-ignore
                 userID={map.has(index) ? item.userID : ''}
               />
             </View>
           </TouchableOpacity>
         )}
+        // @ts-ignore
         keyExtractor={(item, index) => index.toString()}
       />
     </View>

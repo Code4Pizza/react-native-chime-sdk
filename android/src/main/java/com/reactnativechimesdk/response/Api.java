@@ -66,6 +66,9 @@ public class Api {
   }
 
   public static MeetingSessionConfiguration createSession(JoinMeetingResponse response) {
+    if (response.joinInfo == null) {
+      return null;
+    }
     return new MeetingSessionConfiguration(
       new CreateMeetingResponse(response.joinInfo.meetingResponse.meeting),
       new CreateAttendeeResponse(response.joinInfo.attendeeResponse.attendee));

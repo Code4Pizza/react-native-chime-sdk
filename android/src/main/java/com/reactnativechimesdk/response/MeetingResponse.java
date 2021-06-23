@@ -5,5 +5,5 @@ import com.google.gson.annotations.SerializedName;
 
 public class MeetingResponse {
   @SerializedName("Meeting")
-  Meeting meeting;
+  public Meeting meeting;
 }
