@@ -8,6 +8,7 @@ import com.amazonaws.services.chime.sdk.meetings.audiovideo.AttendeeInfo;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.SignalUpdate;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.VolumeUpdate;
 import com.amazonaws.services.chime.sdk.meetings.realtime.RealtimeObserver;
+import com.annimon.stream.Stream;
 
 public interface SimpleRealTimeObserver extends RealtimeObserver {
 
@@ -40,7 +41,9 @@ public interface SimpleRealTimeObserver extends RealtimeObserver {
 
   @Override
   default void onSignalStrengthChanged(@NonNull SignalUpdate[] signalUpdates) {
-
+    Stream.of(signalUpdates).forEach(it -> {
+      Log.d(TAG, "onSignalStrengthChanged" + it.getAttendeeInfo().getExternalUserId() + " - " + it.getSignalStrength().name());
+    });
   }
 
   @Override

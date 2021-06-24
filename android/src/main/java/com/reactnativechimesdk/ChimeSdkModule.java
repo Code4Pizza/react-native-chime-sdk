@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AttendeeInfo;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoPauseState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
 import com.amazonaws.services.chime.sdk.meetings.device.DeviceChangeObserver;
@@ -324,6 +325,16 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     MeetingModel.getInstance().addVideoTile(videoCollectionTile);
     RosterAttendee attendee = MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId());
     sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, attendee, true);
+  }
+
+  @Override
+  public void onVideoTilePaused(@NonNull @NotNull VideoTileState videoTileState) {
+    Log.d(TAG, "onVideoTilePaused: " + videoTileState.getTileId() + " state " + videoTileState.getPauseState().name());
+  }
+
+  @Override
+  public void onVideoTileResumed(@NonNull @NotNull VideoTileState videoTileState) {
+    Log.d(TAG, "onVideoTileResumed: " + videoTileState.getTileId());
   }
 
   @Override
