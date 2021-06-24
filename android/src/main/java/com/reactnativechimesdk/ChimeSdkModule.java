@@ -16,7 +16,9 @@ import androidx.core.app.ActivityCompat;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AttendeeInfo;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
+import com.amazonaws.services.chime.sdk.meetings.device.DeviceChangeObserver;
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
+import com.amazonaws.services.chime.sdk.meetings.device.MediaDeviceType;
 import com.amazonaws.services.chime.sdk.meetings.session.DefaultMeetingSession;
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSession;
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSessionConfiguration;
@@ -42,6 +44,7 @@ import com.reactnativechimesdk.itf.SimpleVideoTileObserver;
 import com.reactnativechimesdk.response.JoinMeetingResponse;
 import com.reactnativechimesdk.utils.Util;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -68,12 +71,12 @@ import static com.reactnativechimesdk.response.Api.requestCreateSession;
 import static com.reactnativechimesdk.utils.Util.getAttendeeName;
 
 public class ChimeSdkModule extends ReactContextBaseJavaModule
-  implements LifecycleEventListener, SimpleRealTimeObserver, SimpleAudioVideoObserver, SimpleVideoTileObserver {
+  implements LifecycleEventListener, SimpleRealTimeObserver, SimpleAudioVideoObserver, SimpleVideoTileObserver, DeviceChangeObserver {
 
   private static final String TAG = "ChimeSdkModule";
   private static final ConsoleLogger logger = new ConsoleLogger(LogLevel.INFO);
 
-  private final int WEBRTC_PERMISSION_REQUEST_CODE = 1;
+  private final int WEBRTC_PERMISSION_REQUEST_CODE = 1030;
   private final List<String> WEBRTC_PERM = Arrays.asList(MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, CAMERA);
   private final IntentFilter intentFilter = new IntentFilter() {
     {
@@ -88,7 +91,8 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       if ("onRequestPermissionsResult".equals(intent.getAction())) {
         String[] permissions = intent.getStringArrayExtra("permissions");
         int[] grantResults = intent.getIntArrayExtra("grantResults");
-        if (permissions == null || grantResults == null) {
+        int requestCode = intent.getIntExtra("requestCode", -1);
+        if (permissions == null || grantResults == null || requestCode != WEBRTC_PERMISSION_REQUEST_CODE) {
           return;
         }
         joinMeeting();
@@ -171,6 +175,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       MeetingModel.getInstance().getAudioVideo().addRealtimeObserver(this);
       MeetingModel.getInstance().getAudioVideo().addAudioVideoObserver(this);
       MeetingModel.getInstance().getAudioVideo().addVideoTileObserver(this);
+      MeetingModel.getInstance().getAudioVideo().addDeviceChangeObserver(this);
       MeetingModel.getInstance().startMeeting();
     } else {
       showToast("Failed to join meeting");
@@ -242,6 +247,10 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @ReactMethod
   public void switchMyCamera() {
+    if (MeetingModel.getInstance().getAudioVideo() == null) {
+      return;
+    }
+    MeetingModel.getInstance().getAudioVideo().switchCamera();
   }
 
   @Override
@@ -261,17 +270,30 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     Stream.of(devices).forEach(it -> {
       Log.d(TAG, "Device media : " + it.getType() + " - " + it.getLabel());
     });
-    MeetingModel.getInstance().getAudioVideo().chooseAudioDevice(devices.get(0));
+
+    Stream.of(devices)
+      .filter(it -> it.getType() != MediaDeviceType.OTHER)
+      .findLast()
+      .executeIfPresent(it -> MeetingModel.getInstance().getAudioVideo().chooseAudioDevice(it));
+  }
+
+  @Override
+  public void onAudioDeviceChanged(@NotNull List<MediaDevice> list) {
+    Stream.of(list)
+      .filter(it -> it.getType() != MediaDeviceType.OTHER)
+      .findLast()
+      .executeIfPresent(it -> MeetingModel.getInstance().getAudioVideo().chooseAudioDevice(it));
   }
 
   @Override
   public void onAttendeesJoined(@NonNull AttendeeInfo[] attendeeInfos) {
     // Log.d(TAG, "onAttendeesJoined: " + attendeeInfos.length);
     Stream.of(attendeeInfos).forEach(it -> {
-      RosterAttendee newAttendee = MeetingModel.getInstance().getCurrentRoster().put(
+      MeetingModel.getInstance().getCurrentRoster().put(
         it.getAttendeeId(),
         new RosterAttendee(it.getAttendeeId(), getAttendeeName(it.getAttendeeId(), it.getExternalUserId()))
       );
+      RosterAttendee newAttendee = MeetingModel.getInstance().getCurrentRoster().get(it.getAttendeeId());
       if (MeetingModel.getInstance().isLocal(newAttendee.getAttendeeId())) {
         Log.d(TAG, "local attendee joined: " + it.getAttendeeId());
         sendMeetingStateEvent(getReactApplicationContext(), "meeting_ready");
@@ -309,7 +331,8 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     Log.d(TAG, "onVideoTileRemoved tile id: " + tileState.getTileId());
     RosterAttendee attendee = MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId());
     sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, attendee, false);
-    MeetingModel.getInstance().remoteVideoTile(tileState.getTileId());
+    MeetingModel.getInstance().removeVideoTile(tileState.getTileId());
+    MeetingModel.getInstance().getAudioVideo().unbindVideoView(tileState.getTileId());
   }
 
   @Override
@@ -356,6 +379,6 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onHostDestroy() {
-    // TODO
   }
+
 }

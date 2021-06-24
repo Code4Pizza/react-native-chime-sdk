@@ -43,7 +43,7 @@ public class MeetingModel {
     videoTilesLive.postValue(videoTiles);
   }
 
-  public void remoteVideoTile(int tileId) {
+  public void removeVideoTile(int tileId) {
     videoTiles = Stream.of(videoTiles).filter(v -> v.getVideoTileState().getTileId() != tileId).toList();
     videoTilesLive.postValue(videoTiles);
   }
@@ -102,4 +102,4 @@ public class MeetingModel {
     return currentRoster.get(attendeeId);
   }
 
- }
+}
