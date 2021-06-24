@@ -41,9 +41,7 @@ public interface SimpleRealTimeObserver extends RealtimeObserver {
 
   @Override
   default void onSignalStrengthChanged(@NonNull SignalUpdate[] signalUpdates) {
-    Stream.of(signalUpdates).forEach(it -> {
-      Log.d(TAG, "onSignalStrengthChanged" + it.getAttendeeInfo().getExternalUserId() + " - " + it.getSignalStrength().name());
-    });
+    // Stream.of(signalUpdates).forEach(it -> Log.d(TAG, "onSignalStrengthChanged " + it.getAttendeeInfo().getExternalUserId() + " - " + it.getSignalStrength().name()));
   }
 
   @Override
