@@ -5,5 +5,5 @@ import com.google.gson.annotations.SerializedName;
 
 public class AttendeeResponse {
   @SerializedName("Attendee")
-  Attendee attendee;
+  public Attendee attendee;
 }

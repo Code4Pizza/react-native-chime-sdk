@@ -31,19 +31,16 @@ public class EventEmitter {
     sendEvent(context, map);
   }
 
-  public static void sendMeetingUserEvent(ReactContext context, String event, RosterAttendee attendee) {
-    sendMeetingUserEvent(context, event, attendee, null);
-  }
-
-  public static void sendMeetingUserEvent(ReactContext context, String event, RosterAttendee attendee, Boolean isCameraOn) {
+  public static void sendMeetingUserEvent(ReactContext context, String event, RosterAttendee attendee, boolean isCameraOn) {
+    if (attendee == null) {
+      return;
+    }
     WritableMap map = new WritableNativeMap();
     map.putString(KEY_EVENT, event);
     map.putString(KEY_USER_ID, attendee.getAttendeeId());
     map.putString(KEY_USER_NAME, attendee.getAttendeeName());
     map.putBoolean(KEY_AUDIO_STATUS, attendee.isMuted());
-    if (isCameraOn != null) {
-      map.putBoolean(KEY_VIDEO_STATUS, isCameraOn);
-    }
+    map.putBoolean(KEY_VIDEO_STATUS, isCameraOn);
     sendEvent(context, map);
   }
 

@@ -43,7 +43,7 @@ public class MeetingModel {
     videoTilesLive.postValue(videoTiles);
   }
 
-  public void remoteVideTile(int tileId) {
+  public void remoteVideoTile(int tileId) {
     videoTiles = Stream.of(videoTiles).filter(v -> v.getVideoTileState().getTileId() != tileId).toList();
     videoTilesLive.postValue(videoTiles);
   }
@@ -57,20 +57,20 @@ public class MeetingModel {
     return meetingSession.getAudioVideo();
   }
 
-  public String getLocalId() {
-    return localId;
-  }
-
   public void setLocalId(String localId) {
     this.localId = localId;
   }
 
-  public boolean isCameraOn() {
-    return isCameraOn;
+  public boolean isLocal(String attendeeId) {
+    return attendeeId.equals(localId);
   }
 
-  public void setCameraOn(boolean cameraOn) {
-    isCameraOn = cameraOn;
+  public boolean isCameraLocalOn() {
+    return Stream.of(videoTiles).filter(v -> v.getVideoTileState().isLocalTile()).findSingle().isPresent();
+  }
+
+  public boolean isCameraAttendeeOn(String attendeeId) {
+    return Stream.of(videoTiles).filter(v -> v.getVideoTileState().getAttendeeId().equals(attendeeId)).findSingle().isPresent();
   }
 
   public Map<String, RosterAttendee> getCurrentRoster() {
@@ -101,4 +101,5 @@ public class MeetingModel {
   public RosterAttendee getAttendee(String attendeeId) {
     return currentRoster.get(attendeeId);
   }
-}
+
+ }

@@ -16,6 +16,7 @@ import androidx.core.app.ActivityCompat;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AttendeeInfo;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
+import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
 import com.amazonaws.services.chime.sdk.meetings.session.DefaultMeetingSession;
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSession;
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSessionConfiguration;
@@ -55,6 +56,7 @@ import static androidx.core.content.ContextCompat.checkSelfPermission;
 import static com.reactnativechimesdk.EventEmitter.KEY_AUDIO_STATUS;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_ID;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_NAME;
+import static com.reactnativechimesdk.EventEmitter.KEY_VIDEO_STATUS;
 import static com.reactnativechimesdk.EventEmitter.MEETING_AUDIO_STATUS_CHANGE;
 import static com.reactnativechimesdk.EventEmitter.MEETING_USER_JOIN;
 import static com.reactnativechimesdk.EventEmitter.MEETING_USER_LEFT;
@@ -136,6 +138,10 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       return;
     }
 
+    if (joinMeetingResponse.joinInfo != null) {
+      MeetingModel.getInstance().setLocalId(joinMeetingResponse.joinInfo.attendeeResponse.attendee.getAttendeeId());
+    }
+
     if (hasPermissionsAlready()) {
       joinMeeting();
     } else {
@@ -187,6 +193,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
         map.putString(KEY_USER_ID, it.getAttendeeId());
         map.putString(KEY_USER_NAME, it.getAttendeeName());
         map.putBoolean(KEY_AUDIO_STATUS, it.isMuted());
+        map.putBoolean(KEY_VIDEO_STATUS, MeetingModel.getInstance().isCameraAttendeeOn(it.getAttendeeId()));
         array.pushMap(map);
       });
     callback.invoke(array);
@@ -202,6 +209,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
         map.putString(KEY_USER_ID, attendee.getAttendeeId());
         map.putString(KEY_USER_NAME, attendee.getAttendeeName());
         map.putBoolean(KEY_AUDIO_STATUS, attendee.isMuted());
+        map.putBoolean(KEY_VIDEO_STATUS, MeetingModel.getInstance().isCameraAttendeeOn(attendee.getAttendeeId()));
         callback.invoke(map);
       });
   }
@@ -209,14 +217,14 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   @ReactMethod
   public void onMyAudio() {
     if (MeetingModel.getInstance().getAudioVideo() != null) {
-      MeetingModel.getInstance().getAudioVideo().realtimeLocalMute();
+      MeetingModel.getInstance().getAudioVideo().realtimeLocalUnmute();
     }
   }
 
   @ReactMethod
   public void offMyAudio() {
     if (MeetingModel.getInstance().getAudioVideo() != null) {
-      MeetingModel.getInstance().getAudioVideo().realtimeLocalUnmute();
+      MeetingModel.getInstance().getAudioVideo().realtimeLocalMute();
     }
   }
 
@@ -225,7 +233,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     if (MeetingModel.getInstance().getAudioVideo() == null) {
       return;
     }
-    if (MeetingModel.getInstance().isCameraOn()) {
+    if (MeetingModel.getInstance().isCameraLocalOn()) {
       MeetingModel.getInstance().getAudioVideo().stopLocalVideo();
     } else {
       MeetingModel.getInstance().getAudioVideo().startLocalVideo();
@@ -237,20 +245,40 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   }
 
   @Override
+  public void onAudioSessionStarted(boolean reconnecting) {
+    if (MeetingModel.getInstance().getAudioVideo() == null) {
+      return;
+    }
+    boolean success = MeetingModel.getInstance().getAudioVideo().realtimeSetVoiceFocusEnabled(true);
+    if (success) {
+      Log.d(TAG, "Set voice focus success");
+    } else {
+      Log.d(TAG, "Failed to set voice focus");
+    }
+
+    List<MediaDevice> devices = MeetingModel.getInstance().getAudioVideo().listAudioDevices();
+
+    Stream.of(devices).forEach(it -> {
+      Log.d(TAG, "Device media : " + it.getType() + " - " + it.getLabel());
+    });
+    MeetingModel.getInstance().getAudioVideo().chooseAudioDevice(devices.get(0));
+  }
+
+  @Override
   public void onAttendeesJoined(@NonNull AttendeeInfo[] attendeeInfos) {
     // Log.d(TAG, "onAttendeesJoined: " + attendeeInfos.length);
     Stream.of(attendeeInfos).forEach(it -> {
-      MeetingModel.getInstance().getCurrentRoster().put(
+      RosterAttendee newAttendee = MeetingModel.getInstance().getCurrentRoster().put(
         it.getAttendeeId(),
         new RosterAttendee(it.getAttendeeId(), getAttendeeName(it.getAttendeeId(), it.getExternalUserId()))
       );
-      if (it.getAttendeeId().equals(MeetingModel.getInstance().getLocalId())) {
+      if (MeetingModel.getInstance().isLocal(newAttendee.getAttendeeId())) {
         Log.d(TAG, "local attendee joined: " + it.getAttendeeId());
         sendMeetingStateEvent(getReactApplicationContext(), "meeting_ready");
       } else {
         Log.d(TAG, "remote attendee joined: " + it.getAttendeeId());
-        RosterAttendee newAttendee = MeetingModel.getInstance().getCurrentRoster().get(it.getAttendeeId());
-        sendMeetingUserEvent(getReactApplicationContext(), MEETING_USER_JOIN, newAttendee);
+        boolean isCameraOn = MeetingModel.getInstance().isCameraAttendeeOn(it.getAttendeeId());
+        sendMeetingUserEvent(getReactApplicationContext(), MEETING_USER_JOIN, newAttendee, isCameraOn);
       }
     });
   }
@@ -259,51 +287,43 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   public void onAttendeesLeft(@NonNull AttendeeInfo[] attendeeInfos) {
     // Log.d(TAG, "onAttendeesLeft: " + attendeeInfos.length);
     Stream.of(attendeeInfos).forEach(it -> {
-      RosterAttendee removal = MeetingModel.getInstance().getCurrentRoster().get(it.getAttendeeId());
-      sendMeetingUserEvent(getReactApplicationContext(), MEETING_USER_LEFT, removal);
-      MeetingModel.getInstance().getCurrentRoster().remove(it.getAttendeeId());
+      RosterAttendee removal = MeetingModel.getInstance().getCurrentRoster().remove(it.getAttendeeId());
+      if (removal != null) {
+        boolean isCameraOn = MeetingModel.getInstance().isCameraAttendeeOn(it.getAttendeeId());
+        sendMeetingUserEvent(ChimeSdkModule.this.getReactApplicationContext(), MEETING_USER_LEFT, removal, isCameraOn);
+      }
     });
   }
 
   @Override
   public void onVideoTileAdded(@NonNull VideoTileState tileState) {
     Log.d(TAG, "onVideoTileAdded tile id: " + tileState.getTileId());
-    VideoCollectionTile videoCollectionTile;
-    if (tileState.isLocalTile() && joinMeetingResponse != null) {
-      videoCollectionTile = new VideoCollectionTile(tileState);
-      MeetingModel.getInstance().setLocalId(tileState.getAttendeeId());
-      MeetingModel.getInstance().setCameraOn(true);
-    } else {
-      videoCollectionTile = new VideoCollectionTile(tileState);
-    }
+    VideoCollectionTile videoCollectionTile = new VideoCollectionTile(tileState);
     MeetingModel.getInstance().addVideoTile(videoCollectionTile);
-    if (MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId()) != null) {
-      RosterAttendee rosterAttendee = MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId());
-      sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, rosterAttendee, true);
-    }
+    RosterAttendee attendee = MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId());
+    sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, attendee, true);
   }
 
   @Override
   public void onVideoTileRemoved(@NonNull VideoTileState tileState) {
     Log.d(TAG, "onVideoTileRemoved tile id: " + tileState.getTileId());
-    if (MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId()) != null) {
-      RosterAttendee rosterAttendee = MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId());
-      sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, rosterAttendee, false);
-    }
-    if (tileState.isLocalTile()) {
-      MeetingModel.getInstance().setLocalId(null);
-      MeetingModel.getInstance().setCameraOn(false);
-    } else {
-      MeetingModel.getInstance().remoteVideTile(tileState.getTileId());
-    }
+    RosterAttendee attendee = MeetingModel.getInstance().getCurrentRoster().get(tileState.getAttendeeId());
+    sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, attendee, false);
+    MeetingModel.getInstance().remoteVideoTile(tileState.getTileId());
   }
 
   @Override
   public void onAttendeesMuted(@NonNull AttendeeInfo[] attendeeInfos) {
     Stream.of(attendeeInfos).forEach(it -> {
         RosterAttendee current = MeetingModel.getInstance().getAttendee(it.getAttendeeId());
-        MeetingModel.getInstance().getCurrentRoster().put(it.getAttendeeId(), new RosterAttendee(current.getAttendeeId(), current.getAttendeeName(), true));
-        sendMeetingUserEvent(getReactApplicationContext(), MEETING_AUDIO_STATUS_CHANGE, MeetingModel.getInstance().getAttendee((it.getAttendeeId())));
+        RosterAttendee attendee = MeetingModel.getInstance().getCurrentRoster().put(it.getAttendeeId(),
+          new RosterAttendee(
+            current.getAttendeeId(),
+            current.getAttendeeName(),
+            true
+          ));
+        boolean isCameraOn = MeetingModel.getInstance().isCameraAttendeeOn(it.getAttendeeId());
+        sendMeetingUserEvent(getReactApplicationContext(), MEETING_AUDIO_STATUS_CHANGE, attendee, isCameraOn);
       }
     );
   }
@@ -312,8 +332,14 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   public void onAttendeesUnmuted(@NonNull AttendeeInfo[] attendeeInfos) {
     Stream.of(attendeeInfos).forEach(it -> {
         RosterAttendee current = MeetingModel.getInstance().getAttendee(it.getAttendeeId());
-        MeetingModel.getInstance().getCurrentRoster().put(it.getAttendeeId(), new RosterAttendee(current.getAttendeeId(), current.getAttendeeName(), false));
-        sendMeetingUserEvent(getReactApplicationContext(), MEETING_AUDIO_STATUS_CHANGE, MeetingModel.getInstance().getAttendee((it.getAttendeeId())));
+        RosterAttendee attendee = MeetingModel.getInstance().getCurrentRoster().put(it.getAttendeeId(),
+          new RosterAttendee(
+            current.getAttendeeId(),
+            current.getAttendeeName(),
+            true
+          ));
+        boolean isCameraOn = MeetingModel.getInstance().isCameraAttendeeOn(it.getAttendeeId());
+        sendMeetingUserEvent(getReactApplicationContext(), MEETING_AUDIO_STATUS_CHANGE, attendee, isCameraOn);
       }
     );
   }
