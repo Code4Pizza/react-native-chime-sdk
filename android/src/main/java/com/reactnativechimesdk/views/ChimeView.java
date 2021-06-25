@@ -12,6 +12,7 @@ import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.Observer;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.DefaultVideoRenderView;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
 import com.annimon.stream.Stream;
 import com.facebook.react.bridge.ReactContext;
 import com.reactnativechimesdk.MeetingModel;

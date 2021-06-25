@@ -19,7 +19,7 @@ public class Api {
 
   private static final String TAG = "Api";
 
-  public static String requestCreateSession(String meetingUrl, String meetingId, String attendeeName) {
+  public static String requestCreateSession(String meetingUrl, String meetingId, String attendeeName) throws IOException {
     if (meetingUrl == null || meetingId == null || attendeeName == null) {
       return null;
     }
@@ -50,7 +50,7 @@ public class Api {
         Log.e(TAG, "Unable to join meeting. Response code: " + urlConnection.getResponseCode());
       }
     } catch (IOException e) {
-      Log.e(TAG, "There was an exception while joining the meeting: ", e);
+      throw new IOException(e);
     } finally {
       if (urlConnection != null)
         urlConnection.disconnect();

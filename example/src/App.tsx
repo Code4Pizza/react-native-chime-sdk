@@ -76,8 +76,8 @@ export default function App() {
 
   const join = () => {
     joinMeeting({
-      meetingUrl: 'http://de0671673fc8.ngrok.io/',
-      meetingId: 'klplpp',
+      meetingUrl: 'http://6dffed99a61f.ngrok.io/',
+      meetingId: 'klplpsssp',
       attendeeName: 'The Anh',
     });
   };
@@ -134,15 +134,15 @@ export default function App() {
           >
             <View
               style={{
-                width: 120,
-                height: 120,
+                width: 300,
+                height: 300,
                 borderRadius: 30,
                 overflow: 'hidden',
                 margin: 16,
               }}
             >
               <RNChimeView
-                style={{ width: 120, height: 120, borderRadius: 30 }}
+                style={{ width: 300, height: 300, borderRadius: 30 }}
                 // @ts-ignore
                 userID={map.has(index) ? item.userID : ''}
               />

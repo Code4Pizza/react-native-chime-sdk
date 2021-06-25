@@ -3,6 +3,10 @@ package com.reactnativechimesdk;
 import androidx.lifecycle.MutableLiveData;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AudioVideoFacade;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory;
+import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSession;
 import com.annimon.stream.Stream;
 import com.reactnativechimesdk.data.RosterAttendee;
@@ -24,15 +28,21 @@ public class MeetingModel {
   private MeetingModel() {
   }
 
+  public final EglCoreFactory eglCoreFactory = new DefaultEglCoreFactory();
+
   private MeetingSession meetingSession;
+  private CameraCaptureSource cameraCaptureSource;
 
   private String localId;
-  private boolean isCameraOn;
 
   private final Map<String, RosterAttendee> currentRoster = new HashMap<>();
 
   private List<VideoCollectionTile> videoTiles = new ArrayList<>();
   private final MutableLiveData<List<VideoCollectionTile>> videoTilesLive = new MutableLiveData<>();
+
+  public void setCameraCaptureSource(CameraCaptureSource cameraCaptureSource) {
+    this.cameraCaptureSource = cameraCaptureSource;
+  }
 
   public MutableLiveData<List<VideoCollectionTile>> getVideoTilesLive() {
     return videoTilesLive;
@@ -53,7 +63,8 @@ public class MeetingModel {
   }
 
   public AudioVideoFacade getAudioVideo() {
-    if (meetingSession == null) return null;
+    if (meetingSession == null)
+      return null;
     return meetingSession.getAudioVideo();
   }
 
@@ -82,17 +93,24 @@ public class MeetingModel {
   }
 
   public void startMeeting() {
-    if (getAudioVideo() == null) return;
+    if (getAudioVideo() == null) {
+      return;
+    }
     getAudioVideo().start();
-    getAudioVideo().startLocalVideo();
+    getAudioVideo().startLocalVideo(cameraCaptureSource);
     getAudioVideo().startRemoteVideo();
+    cameraCaptureSource.start();
   }
 
   public void endMeeting() {
-    if (getAudioVideo() == null) return;
+    if (getAudioVideo() == null) {
+      return;
+    }
     getAudioVideo().stopLocalVideo();
     getAudioVideo().stopRemoteVideo();
+    getAudioVideo().stopContentShare();
     getAudioVideo().stop();
+    cameraCaptureSource.stop();
     currentRoster.clear();
     videoTiles.clear();
     videoTilesLive.postValue(Collections.emptyList());

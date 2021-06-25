@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.hardware.camera2.CameraManager;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.Toast;
@@ -14,9 +15,11 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AttendeeInfo;
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoPauseState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState;
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultCameraCaptureSource;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultSurfaceTextureCaptureSourceFactory;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.VideoCaptureFormat;
 import com.amazonaws.services.chime.sdk.meetings.device.DeviceChangeObserver;
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDeviceType;
@@ -49,6 +52,7 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -76,6 +80,9 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   private static final String TAG = "ChimeSdkModule";
   private static final ConsoleLogger logger = new ConsoleLogger(LogLevel.INFO);
+
+  private static final int MAX_VIDEO_FORMAT_HEIGHT = 240;
+  private static final int MAX_VIDEO_FORMAT_FPS = 15;
 
   private final int WEBRTC_PERMISSION_REQUEST_CODE = 1030;
   private final List<String> WEBRTC_PERM = Arrays.asList(MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, CAMERA);
@@ -131,6 +138,8 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     try {
       JSONObject object = Util.convertMapToJson(map);
       joinMeetingResponse = gson.fromJson(object.toString(), JoinMeetingResponse.class);
+
+      // For example only
       if (joinMeetingResponse.joinInfo == null) {
         String url = map.getString("meetingUrl");
         String id = map.getString("meetingId");
@@ -138,13 +147,15 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
         String rs = requestCreateSession(url, id, name);
         joinMeetingResponse = gson.fromJson(rs, JoinMeetingResponse.class);
       }
-    } catch (JSONException e) {
+
+      if (joinMeetingResponse != null && joinMeetingResponse.joinInfo != null) {
+        MeetingModel.getInstance().setLocalId(joinMeetingResponse.joinInfo.attendeeResponse.attendee.getAttendeeId());
+      } else {
+        throw new IllegalArgumentException("Error parsing meeting response");
+      }
+    } catch (IOException | JSONException | IllegalArgumentException e) {
       Log.e(TAG, "Failed to create meeting response", e);
       return;
-    }
-
-    if (joinMeetingResponse.joinInfo != null) {
-      MeetingModel.getInstance().setLocalId(joinMeetingResponse.joinInfo.attendeeResponse.attendee.getAttendeeId());
     }
 
     if (hasPermissionsAlready()) {
@@ -171,7 +182,8 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
         showToast("Failed to join meeting");
         return;
       }
-      MeetingSession meetingSession = new DefaultMeetingSession(config, logger, getReactApplicationContext(), new DefaultEglCoreFactory());
+      MeetingSession meetingSession = new DefaultMeetingSession(config, logger, getReactApplicationContext(), MeetingModel.getInstance().eglCoreFactory);
+      MeetingModel.getInstance().setCameraCaptureSource(initCameraCaptureSource());
       MeetingModel.getInstance().setMeetingSession(meetingSession);
       MeetingModel.getInstance().getAudioVideo().addRealtimeObserver(this);
       MeetingModel.getInstance().getAudioVideo().addAudioVideoObserver(this);
@@ -181,6 +193,28 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     } else {
       showToast("Failed to join meeting");
     }
+  }
+
+  private CameraCaptureSource initCameraCaptureSource() {
+    DefaultSurfaceTextureCaptureSourceFactory surface = new DefaultSurfaceTextureCaptureSourceFactory(logger, MeetingModel.getInstance().eglCoreFactory);
+    CameraCaptureSource cameraCaptureSource = new DefaultCameraCaptureSource(getReactApplicationContext(), logger, surface);
+    try {
+      CameraManager cameraManager = (CameraManager) getReactApplicationContext().getSystemService(Context.CAMERA_SERVICE);
+      List<MediaDevice> mediaDevices = MediaDevice.Companion.listVideoDevices(cameraManager);
+      MediaDevice mediaDevice = Stream.of(mediaDevices)
+        .filter(it -> it.getType() == MediaDeviceType.VIDEO_FRONT_CAMERA)
+        .findFirstOrElse(Stream.of(mediaDevices).findFirst().orElseThrow());
+      cameraCaptureSource.setDevice(mediaDevice);
+      assert cameraCaptureSource.getDevice() != null;
+      List<VideoCaptureFormat> formats = MediaDevice.Companion.listSupportedVideoCaptureFormats(cameraManager, cameraCaptureSource.getDevice());
+      Stream.of(formats)
+        .filter(it -> it.getHeight() <= MAX_VIDEO_FORMAT_HEIGHT)
+        .findFirst()
+        .ifPresent(it -> cameraCaptureSource.setFormat(new VideoCaptureFormat(it.getWidth(), it.getHeight(), MAX_VIDEO_FORMAT_FPS)));
+    } catch (Exception e) {
+      Log.e(TAG, "Media devices not found");
+    }
+    return cameraCaptureSource;
   }
 
   @ReactMethod
@@ -385,11 +419,12 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onHostPause() {
-    getReactApplicationContext().unregisterReceiver(moduleConfigReceiver);
   }
 
   @Override
   public void onHostDestroy() {
+    getReactApplicationContext().unregisterReceiver(moduleConfigReceiver);
+    MeetingModel.getInstance().endMeeting();
   }
 
 }

@@ -35,6 +35,7 @@ public class MainActivity extends ReactActivity {
     Intent intent = new Intent("onRequestPermissionsResult");
     intent.putExtra("permissions", permissions);
     intent.putExtra("grantResults", grantResults);
+    intent.putExtra("requestCode", requestCode);
     this.sendBroadcast(intent);
   }
 }
