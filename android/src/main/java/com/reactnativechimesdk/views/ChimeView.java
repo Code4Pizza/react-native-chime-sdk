@@ -1,6 +1,7 @@
 package com.reactnativechimesdk.views;
 
 import android.content.Context;
+import android.os.Handler;
 import android.util.AttributeSet;
 import android.widget.FrameLayout;
 
@@ -10,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.LifecycleOwner;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.DefaultVideoRenderView;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoPauseState;
 import com.annimon.stream.Stream;
 import com.facebook.react.bridge.ReactContext;
 import com.reactnativechimesdk.MeetingModel;
@@ -21,7 +23,6 @@ public class ChimeView extends FrameLayout {
 
   private DefaultVideoRenderView renderView;
   private String attendeeId;
-  private boolean viewVisible;
 
   public ChimeView(@NonNull Context context) {
     this(context, null);
@@ -46,7 +47,7 @@ public class ChimeView extends FrameLayout {
   }
 
   public void bindVideoTile(String attendeeId) {
-    viewVisible = !attendeeId.isEmpty();
+    boolean viewVisible = !attendeeId.isEmpty();
     if (viewVisible) {
       this.attendeeId = attendeeId;
       bind();
@@ -59,18 +60,27 @@ public class ChimeView extends FrameLayout {
     Stream.of(MeetingModel.meetingModel().getVideoTiles())
       .filter(it -> it.getVideoTileState().getAttendeeId().equals(ChimeView.this.attendeeId))
       .findSingle()
-      .executeIfAbsent(() -> {
-        setVisibility(GONE);
-      })
+      .executeIfAbsent(() -> setVisibility(GONE))
       .executeIfPresent(v -> {
-        if (viewVisible) {
-          setVisibility(VISIBLE);
-          MeetingModel.meetingModel().getAudioVideo().bindVideoView(renderView, v.getVideoTileState().getTileId());
-        }
+        setVisibility(VISIBLE);
+        new Handler().postDelayed(() -> {
+          if (v.getVideoTileState().getPauseState() == VideoPauseState.Unpaused) {
+            MeetingModel.meetingModel().getAudioVideo().bindVideoView(renderView, v.getVideoTileState().getTileId());
+          } else {
+            MeetingModel.meetingModel().getAudioVideo().resumeRemoteVideoTile(v.getVideoTileState().getTileId());
+          }
+        }, 1000);
       });
   }
 
   private void unbind() {
-    setVisibility(GONE);
+    Stream.of(MeetingModel.meetingModel().getVideoTiles())
+      .filter(it -> it.getVideoTileState().getAttendeeId().equals(ChimeView.this.attendeeId))
+      .findSingle()
+      .executeIfAbsent(() -> setVisibility(GONE))
+      .executeIfPresent(v -> {
+        setVisibility(GONE);
+        MeetingModel.meetingModel().getAudioVideo().pauseRemoteVideoTile(v.getVideoTileState().getTileId());
+      });
   }
 }

@@ -16,6 +16,8 @@ import androidx.core.app.ActivityCompat;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AttendeeInfo;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.contentshare.ContentShareObserver;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.contentshare.ContentShareStatus;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.metric.MetricsObserver;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.metric.ObservableMetric;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultCameraCaptureSource;
@@ -58,11 +60,13 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static android.Manifest.permission.CAMERA;
 import static android.Manifest.permission.MODIFY_AUDIO_SETTINGS;
 import static android.Manifest.permission.RECORD_AUDIO;
+import static android.text.format.Formatter.formatShortFileSize;
 import static androidx.core.content.ContextCompat.checkSelfPermission;
 import static com.reactnativechimesdk.EventEmitter.KEY_AUDIO_STATUS;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_ID;
@@ -84,7 +88,7 @@ import static com.reactnativechimesdk.response.Api.requestCreateSession;
 import static com.reactnativechimesdk.utils.Util.getAttendeeName;
 
 public class ChimeSdkModule extends ReactContextBaseJavaModule
-  implements LifecycleEventListener, SimpleRealTimeObserver, SimpleAudioVideoObserver, SimpleVideoTileObserver, DeviceChangeObserver, ContentShareObserver {
+  implements LifecycleEventListener, SimpleRealTimeObserver, SimpleAudioVideoObserver, SimpleVideoTileObserver, DeviceChangeObserver, ContentShareObserver, MetricsObserver {
 
   private static final String TAG = "ChimeSdkModule";
   private static final ConsoleLogger logger = new ConsoleLogger(LogLevel.INFO);
@@ -198,6 +202,9 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       meetingModel().getAudioVideo().addVideoTileObserver(this);
       meetingModel().getAudioVideo().addDeviceChangeObserver(this);
       meetingModel().getAudioVideo().addContentShareObserver(this);
+      if (BuildConfig.DEBUG) {
+        meetingModel().getAudioVideo().addMetricsObserver(this);
+      }
       meetingModel().startMeeting();
     } else {
       showToast("Failed to join meeting");
@@ -218,7 +225,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       List<VideoCaptureFormat> formats = MediaDevice.Companion.listSupportedVideoCaptureFormats(cameraManager, cameraCaptureSource.getDevice());
       Stream.of(formats)
         .filter(it -> it.getHeight() <= MAX_VIDEO_FORMAT_HEIGHT)
-        .findFirst()
+        .findLast()
         .ifPresent(it -> cameraCaptureSource.setFormat(new VideoCaptureFormat(it.getWidth(), it.getHeight(), MAX_VIDEO_FORMAT_FPS)));
     } catch (Exception e) {
       Log.e(TAG, "Media devices not found");
@@ -435,5 +442,15 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   @Override
   public void onContentShareStopped(@NotNull ContentShareStatus contentShareStatus) {
 
+  }
+
+  @Override
+  public void onMetricsReceived(@NotNull Map<ObservableMetric, ?> map) {
+    Stream.of(map).forEach(it -> {
+      if (it.getKey().toString().startsWith("video") && !it.getKey().toString().startsWith("videoA") && ((Double) it.getValue()) > 0) {
+        Double value = (Double) it.getValue();
+        Log.d("=======<", it.getKey() + " - " + formatShortFileSize(getReactApplicationContext(), value.longValue()));
+      }
+    });
   }
 }
