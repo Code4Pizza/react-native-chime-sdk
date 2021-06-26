@@ -14,6 +14,8 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AttendeeInfo;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.contentshare.ContentShareObserver;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.contentshare.ContentShareStatus;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultCameraCaptureSource;
@@ -66,19 +68,23 @@ import static com.reactnativechimesdk.EventEmitter.KEY_AUDIO_STATUS;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_ID;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_NAME;
 import static com.reactnativechimesdk.EventEmitter.KEY_VIDEO_STATUS;
+import static com.reactnativechimesdk.EventEmitter.MEETING_ACTIVE_SHARE;
 import static com.reactnativechimesdk.EventEmitter.MEETING_AUDIO_STATUS_CHANGE;
 import static com.reactnativechimesdk.EventEmitter.MEETING_USER_JOIN;
 import static com.reactnativechimesdk.EventEmitter.MEETING_USER_LEFT;
 import static com.reactnativechimesdk.EventEmitter.MEETING_VIDEO_STATUS_CHANGE;
+import static com.reactnativechimesdk.EventEmitter.SHARE_STATUS_START;
+import static com.reactnativechimesdk.EventEmitter.SHARE_STATUS_STOP;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingStateEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingUserEvent;
+import static com.reactnativechimesdk.EventEmitter.sendMeetingUserShareEvent;
 import static com.reactnativechimesdk.MeetingModel.meetingModel;
 import static com.reactnativechimesdk.response.Api.createSession;
 import static com.reactnativechimesdk.response.Api.requestCreateSession;
 import static com.reactnativechimesdk.utils.Util.getAttendeeName;
 
 public class ChimeSdkModule extends ReactContextBaseJavaModule
-  implements LifecycleEventListener, SimpleRealTimeObserver, SimpleAudioVideoObserver, SimpleVideoTileObserver, DeviceChangeObserver {
+  implements LifecycleEventListener, SimpleRealTimeObserver, SimpleAudioVideoObserver, SimpleVideoTileObserver, DeviceChangeObserver, ContentShareObserver {
 
   private static final String TAG = "ChimeSdkModule";
   private static final ConsoleLogger logger = new ConsoleLogger(LogLevel.INFO);
@@ -191,6 +197,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       meetingModel().getAudioVideo().addAudioVideoObserver(this);
       meetingModel().getAudioVideo().addVideoTileObserver(this);
       meetingModel().getAudioVideo().addDeviceChangeObserver(this);
+      meetingModel().getAudioVideo().addContentShareObserver(this);
       meetingModel().startMeeting();
     } else {
       showToast("Failed to join meeting");
@@ -324,11 +331,23 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onVideoTileAdded(@NonNull VideoTileState tileState) {
-    Log.d(TAG, "onVideoTileAdded tile id: " + tileState.getTileId());
-    VideoCollectionTile videoCollectionTile = new VideoCollectionTile(tileState);
-    meetingModel().addVideoTile(videoCollectionTile);
-    RosterAttendee attendee = meetingModel().getAttendee(tileState.getAttendeeId());
-    sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, attendee, true);
+    if (tileState.isContent()) {
+      handleShareVideoTileAdded(tileState.getAttendeeId());
+    } else {
+      handleVideoTileAdded(tileState);
+    }
+  }
+
+  private void handleShareVideoTileAdded(String attendeeId) {
+    RosterAttendee attendee = meetingModel().getAttendee(attendeeId);
+    boolean isCameraOn = meetingModel().isCameraAttendeeOn(attendeeId);
+    sendMeetingUserShareEvent(getReactApplicationContext(), MEETING_ACTIVE_SHARE, attendee, isCameraOn, SHARE_STATUS_START);
+  }
+
+  private void handleVideoTileAdded(VideoTileState tile) {
+    Log.d(TAG, "onVideoTileAdded tile id: " + tile.getTileId());
+    meetingModel().addVideoTile(new VideoCollectionTile(tile));
+    sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, meetingModel().getAttendee(tile.getAttendeeId()), true);
   }
 
   @Override
@@ -343,10 +362,23 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onVideoTileRemoved(@NonNull VideoTileState tileState) {
-    Log.d(TAG, "onVideoTileRemoved tile id: " + tileState.getTileId());
-    RosterAttendee attendee = meetingModel().getAttendee(tileState.getAttendeeId());
-    sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, attendee, false);
-    meetingModel().removeVideoTile(tileState.getTileId());
+    if (tileState.isContent()) {
+      handleShareVideoTileRemoved(tileState.getAttendeeId());
+    } else {
+      handleVideoTileRemoved(tileState);
+    }
+  }
+
+  private void handleShareVideoTileRemoved(String attendeeId) {
+    RosterAttendee attendee = meetingModel().getAttendee(attendeeId);
+    boolean isCameraOn = meetingModel().isCameraAttendeeOn(attendeeId);
+    sendMeetingUserShareEvent(getReactApplicationContext(), MEETING_ACTIVE_SHARE, attendee, isCameraOn, SHARE_STATUS_STOP);
+  }
+
+  private void handleVideoTileRemoved(VideoTileState tile) {
+    Log.d(TAG, "onVideoTileRemoved tile id: " + tile.getTileId());
+    sendMeetingUserEvent(getReactApplicationContext(), MEETING_VIDEO_STATUS_CHANGE, meetingModel().getAttendee(tile.getAttendeeId()), false);
+    meetingModel().removeVideoTile(tile.getTileId());
   }
 
   @Override
@@ -396,4 +428,12 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     meetingModel().endMeeting();
   }
 
+  @Override
+  public void onContentShareStarted() {
+  }
+
+  @Override
+  public void onContentShareStopped(@NotNull ContentShareStatus contentShareStatus) {
+
+  }
 }

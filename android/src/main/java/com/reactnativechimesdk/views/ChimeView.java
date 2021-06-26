@@ -21,7 +21,7 @@ public class ChimeView extends FrameLayout {
 
   private DefaultVideoRenderView renderView;
   private String attendeeId;
-  private boolean viewVisible, bindSuccess;
+  private boolean viewVisible;
 
   public ChimeView(@NonNull Context context) {
     this(context, null);

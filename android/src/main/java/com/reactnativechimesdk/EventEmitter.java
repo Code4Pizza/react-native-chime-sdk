@@ -23,6 +23,10 @@ public class EventEmitter {
   public static final String KEY_USER_ID = "userID";
   public static final String KEY_VIDEO_STATUS = "videoStatus";
   public static final String KEY_AUDIO_STATUS = "audioStatus";
+  public static final String KEY_SHARE_STATUS = "shareStatus";
+
+  public static final int SHARE_STATUS_START = 1;
+  public static final int SHARE_STATUS_STOP = 4;
 
   public static void sendMeetingStateEvent(ReactContext context, String des) {
     WritableMap map = new WritableNativeMap();
@@ -41,6 +45,20 @@ public class EventEmitter {
     map.putString(KEY_USER_NAME, attendee.getAttendeeName());
     map.putBoolean(KEY_AUDIO_STATUS, attendee.isMuted());
     map.putBoolean(KEY_VIDEO_STATUS, isCameraOn);
+    sendEvent(context, map);
+  }
+
+  public static void sendMeetingUserShareEvent(ReactContext context, String event, RosterAttendee attendee, boolean isCameraOn, int shareStatus) {
+    if (attendee == null) {
+      return;
+    }
+    WritableMap map = new WritableNativeMap();
+    map.putString(KEY_EVENT, event);
+    map.putString(KEY_USER_ID, attendee.getAttendeeId());
+    map.putString(KEY_USER_NAME, attendee.getAttendeeName());
+    map.putBoolean(KEY_AUDIO_STATUS, attendee.isMuted());
+    map.putBoolean(KEY_VIDEO_STATUS, isCameraOn);
+    map.putInt(KEY_SHARE_STATUS, shareStatus);
     sendEvent(context, map);
   }
 
