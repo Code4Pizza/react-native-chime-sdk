@@ -2,24 +2,18 @@ package com.reactnativechimesdk.views;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.LifecycleOwner;
-import androidx.lifecycle.Observer;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.DefaultVideoRenderView;
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
 import com.annimon.stream.Stream;
 import com.facebook.react.bridge.ReactContext;
 import com.reactnativechimesdk.MeetingModel;
 import com.reactnativechimesdk.R;
-import com.reactnativechimesdk.data.VideoCollectionTile;
-
-import java.util.List;
 
 public class ChimeView extends FrameLayout {
 
@@ -42,7 +36,7 @@ public class ChimeView extends FrameLayout {
 
     LifecycleOwner owner = (AppCompatActivity) ((ReactContext) context).getCurrentActivity();
     assert owner != null;
-    MeetingModel.getInstance().getVideoTilesLive().observe(owner, videoCollectionTiles -> bind());
+    MeetingModel.meetingModel().getVideoTilesLive().observe(owner, videoCollectionTiles -> bind());
   }
 
   @Override
@@ -62,7 +56,7 @@ public class ChimeView extends FrameLayout {
   }
 
   private void bind() {
-    Stream.of(MeetingModel.getInstance().getVideoTiles())
+    Stream.of(MeetingModel.meetingModel().getVideoTiles())
       .filter(it -> it.getVideoTileState().getAttendeeId().equals(ChimeView.this.attendeeId))
       .findSingle()
       .executeIfAbsent(() -> {
@@ -71,7 +65,7 @@ public class ChimeView extends FrameLayout {
       .executeIfPresent(v -> {
         if (viewVisible) {
           setVisibility(VISIBLE);
-          MeetingModel.getInstance().getAudioVideo().bindVideoView(renderView, v.getVideoTileState().getTileId());
+          MeetingModel.meetingModel().getAudioVideo().bindVideoView(renderView, v.getVideoTileState().getTileId());
         }
       });
   }

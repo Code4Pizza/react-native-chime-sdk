@@ -1,5 +1,7 @@
 package com.reactnativechimesdk;
 
+import android.util.Log;
+
 import androidx.lifecycle.MutableLiveData;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AudioVideoFacade;
@@ -7,6 +9,7 @@ import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.Camera
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory;
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
+import com.amazonaws.services.chime.sdk.meetings.device.MediaDeviceType;
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSession;
 import com.annimon.stream.Stream;
 import com.reactnativechimesdk.data.RosterAttendee;
@@ -19,9 +22,12 @@ import java.util.List;
 import java.util.Map;
 
 public class MeetingModel {
+
+  private static final String TAG = "MeetingModel";
+
   private static final MeetingModel ourInstance = new MeetingModel();
 
-  public static MeetingModel getInstance() {
+  public static MeetingModel meetingModel() {
     return ourInstance;
   }
 
@@ -30,8 +36,8 @@ public class MeetingModel {
 
   public final EglCoreFactory eglCoreFactory = new DefaultEglCoreFactory();
 
-  private MeetingSession meetingSession;
   private CameraCaptureSource cameraCaptureSource;
+  private AudioVideoFacade audioVideo;
 
   private String localId;
 
@@ -40,8 +46,8 @@ public class MeetingModel {
   private List<VideoCollectionTile> videoTiles = new ArrayList<>();
   private final MutableLiveData<List<VideoCollectionTile>> videoTilesLive = new MutableLiveData<>();
 
-  public void setCameraCaptureSource(CameraCaptureSource cameraCaptureSource) {
-    this.cameraCaptureSource = cameraCaptureSource;
+  public List<VideoCollectionTile> getVideoTiles() {
+    return videoTiles;
   }
 
   public MutableLiveData<List<VideoCollectionTile>> getVideoTilesLive() {
@@ -56,16 +62,21 @@ public class MeetingModel {
   public void removeVideoTile(int tileId) {
     videoTiles = Stream.of(videoTiles).filter(v -> v.getVideoTileState().getTileId() != tileId).toList();
     videoTilesLive.postValue(videoTiles);
+    if (audioVideo != null) {
+      audioVideo.unbindVideoView(tileId);
+    }
+  }
+
+  public void setCameraCaptureSource(CameraCaptureSource cameraCaptureSource) {
+    this.cameraCaptureSource = cameraCaptureSource;
   }
 
   public void setMeetingSession(MeetingSession meetingSession) {
-    this.meetingSession = meetingSession;
+    this.audioVideo = meetingSession.getAudioVideo();
   }
 
   public AudioVideoFacade getAudioVideo() {
-    if (meetingSession == null)
-      return null;
-    return meetingSession.getAudioVideo();
+    return audioVideo;
   }
 
   public void setLocalId(String localId) {
@@ -88,36 +99,86 @@ public class MeetingModel {
     return currentRoster;
   }
 
-  public List<VideoCollectionTile> getVideoTiles() {
-    return videoTiles;
+  public RosterAttendee getAttendee(String attendeeId) {
+    return currentRoster.get(attendeeId);
   }
 
   public void startMeeting() {
-    if (getAudioVideo() == null) {
+    if (audioVideo == null) {
       return;
     }
-    getAudioVideo().start();
-    getAudioVideo().startLocalVideo(cameraCaptureSource);
-    getAudioVideo().startRemoteVideo();
+    audioVideo.start();
+    audioVideo.startLocalVideo(cameraCaptureSource);
+    audioVideo.startRemoteVideo();
     cameraCaptureSource.start();
   }
 
   public void endMeeting() {
-    if (getAudioVideo() == null) {
+    if (audioVideo == null) {
       return;
     }
-    getAudioVideo().stopLocalVideo();
-    getAudioVideo().stopRemoteVideo();
-    getAudioVideo().stopContentShare();
-    getAudioVideo().stop();
+    audioVideo.stopLocalVideo();
+    audioVideo.stopRemoteVideo();
+    audioVideo.stopContentShare();
+    audioVideo.stop();
     cameraCaptureSource.stop();
+    cleanup();
+  }
+
+  public void initMediaDevice() {
+    if (audioVideo == null) {
+      return;
+    }
+    audioVideo.realtimeSetVoiceFocusEnabled(true);
+    selectAudioDevice(audioVideo.listAudioDevices());
+  }
+
+  public void selectAudioDevice(List<MediaDevice> list) {
+    if (audioVideo == null) {
+      return;
+    }
+    Stream.of(list)
+      .filter(it -> it.getType() != MediaDeviceType.OTHER)
+      .findLast()
+      .executeIfPresent(it -> {
+        Log.d(TAG, "choose audio device " + it.getType());
+        audioVideo.chooseAudioDevice(it);
+      });
+  }
+
+  public void onOffAudio(boolean on) {
+    if (audioVideo == null) {
+      return;
+    }
+    if (on) {
+      audioVideo.realtimeLocalUnmute();
+    } else {
+      audioVideo.realtimeLocalMute();
+    }
+  }
+
+  public void onOffVideo() {
+    if (audioVideo == null) {
+      return;
+    }
+    if (isCameraLocalOn()) {
+      audioVideo.stopLocalVideo();
+    } else {
+      audioVideo.startLocalVideo();
+    }
+  }
+
+  public void switchCamera() {
+    if (audioVideo == null) {
+      return;
+    }
+    audioVideo.switchCamera();
+  }
+
+  private void cleanup() {
     currentRoster.clear();
     videoTiles.clear();
     videoTilesLive.postValue(Collections.emptyList());
-  }
-
-  public RosterAttendee getAttendee(String attendeeId) {
-    return currentRoster.get(attendeeId);
   }
 
 }

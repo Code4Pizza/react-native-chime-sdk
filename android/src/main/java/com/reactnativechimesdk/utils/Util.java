@@ -22,7 +22,7 @@ public class Util {
     return URLEncoder.encode(string, "utf-8");
   }
 
-  public static String getAttendeeName(String attendeeId, String externalUserId) {
+  public static String getAttendeeName(String externalUserId) {
     if (!externalUserId.contains("#")) {
       return externalUserId;
     }

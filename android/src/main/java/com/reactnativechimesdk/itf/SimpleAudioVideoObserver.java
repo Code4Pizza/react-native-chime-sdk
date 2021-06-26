@@ -25,7 +25,6 @@ public interface SimpleAudioVideoObserver extends AudioVideoObserver {
 
   @Override
   default void onAudioSessionStarted(boolean b) {
-    Log.d(TAG, "onAudioSessionStarted: " + b);
   }
 
   @Override
