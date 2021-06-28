@@ -76,5 +76,6 @@ export const RNChimeShareView = (props: any) => {
       style={props.style}
     />
   );
+};
 
 export default RNChimeView;
