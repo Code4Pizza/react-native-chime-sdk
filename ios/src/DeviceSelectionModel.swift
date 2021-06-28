@@ -36,6 +36,17 @@ class DeviceSelectionModel {
     }
 
     var selectedAudioDevice: MediaDevice {
+        for item in audioDevices {
+            if item.type == .audioBluetooth {
+                return item
+            }
+            if item.type == .audioWiredHeadset {
+                return item
+            }
+            if item.type == .audioBuiltInSpeaker {
+                return item
+            }
+        }
         return audioDevices[selectedAudioDeviceIndex]
     }
 
@@ -50,7 +61,16 @@ class DeviceSelectionModel {
         if videoDevices.count == 0 {
             return nil
         }
-        return supportedVideoFormat[selectedVideoDeviceIndex][selectedVideoFormatIndex]
+        
+        return VideoCaptureFormat(width: 420, height: 240, maxFrameRate: 15)
+//        let formats = supportedVideoFormat[selectedVideoDeviceIndex]
+//        for format in formats {
+//            if format {
+//                <#code#>
+//            }
+//        }
+//        return formats.last
+        //return supportedVideoFormat[selectedVideoDeviceIndex][selectedVideoFormatIndex]
     }
 
     var shouldMirrorPreview: Bool {

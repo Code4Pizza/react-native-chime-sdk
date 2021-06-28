@@ -16,7 +16,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+@interface ChimeShareView : UIView
+
+@end
+
 @interface RNChimeVideoViewManager : RCTViewManager
+
+@end
+
+@interface RNChimeShareViewManager : RCTViewManager
 
 @end
 

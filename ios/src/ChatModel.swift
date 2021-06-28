@@ -31,7 +31,7 @@ struct ChatMessage {
 
 class ChatModel: NSObject {
     private var chatMessages: [ChatMessage] = []
-    private let logger = ConsoleLogger(name: "ChatModel")
+    private let logger = ConsoleLogger(name: "ChatModel", level: .OFF)
     var refreshChatTableHandler: (() -> Void)?
     public func addDataMessage(dataMessage: DataMessage) {
         guard let message = dataMessage.chatMessage() else {

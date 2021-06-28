@@ -9,6 +9,7 @@ const { ChimeSdk } = NativeModules;
 const eventEmitter = new NativeEventEmitter(ChimeSdk);
 
 const NativeChimeView = requireNativeComponent('RNChimeVideoView');
+const NativeChimeShareView = requireNativeComponent('RNChimeShareView');
 
 export const joinMeeting = (meetingInfo: object) => {
   ChimeSdk.joinMeeting(meetingInfo);
@@ -55,6 +56,15 @@ export const getUserInfo = (userID: string) => {
 
 export const removeListener = () => {
   eventEmitter.removeAllListeners('onChimeMeetingEvent');
+};
+
+export const RNChimeShareView = (props: any) => {
+  return (
+    <NativeChimeShareView
+      // @ts-ignore
+      style={props.style}
+    />
+  );
 };
 
 const RNChimeView = (props: any) => {

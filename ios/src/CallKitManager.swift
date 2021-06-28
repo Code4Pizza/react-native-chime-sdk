@@ -14,7 +14,7 @@ import UIKit
 class CallKitManager: NSObject {
     private static var sharedInstance: CallKitManager?
 
-    private let logger = ConsoleLogger(name: "CallKitManager")
+    private let logger = ConsoleLogger(name: "CallKitManager", level: .OFF)
     private let callController = CXCallController()
     private let provider: CXProvider
 

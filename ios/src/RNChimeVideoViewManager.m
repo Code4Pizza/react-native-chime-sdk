@@ -74,3 +74,20 @@ RCT_EXPORT_MODULE(RNChimeVideoView)
 }
 
 @end
+
+@implementation RNChimeShareViewManager
+
+RCT_EXPORT_MODULE(RNChimeShareView)
+
+- (UIView *)view
+{
+    ChimeShareView *view = [[ChimeShareView alloc] initWithFrame:CGRectZero];
+    return view;
+}
+
+- (dispatch_queue_t)methodQueue
+{
+    return dispatch_get_main_queue();
+}
+
+@end

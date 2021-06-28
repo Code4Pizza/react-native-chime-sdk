@@ -62,7 +62,7 @@ class MeetingViewController: UIViewController {
     var meetingModel: MeetingModel?
 
     // Local var
-    private let logger = ConsoleLogger(name: "MeetingViewController")
+    private let logger = ConsoleLogger(name: "MeetingViewController", level: .OFF)
 
     // MARK: Override functions
 

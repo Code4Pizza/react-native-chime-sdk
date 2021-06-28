@@ -10,7 +10,7 @@ import AmazonChimeSDK
 import Foundation
 
 class JoinRequestService: NSObject {
-    static let logger = ConsoleLogger(name: "JoiningRequestService")
+    static let logger = ConsoleLogger(name: "JoiningRequestService", level: .OFF)
 
     private static func urlRewriter(url: String) -> String {
         // changing url

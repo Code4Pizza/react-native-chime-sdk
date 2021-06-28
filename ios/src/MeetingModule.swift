@@ -18,8 +18,9 @@ class MeetingModule: NSObject {
     private(set) var activeMeeting: MeetingModel?
     private let meetingPresenter = MeetingPresenter()
     private var meetings: [UUID: MeetingModel] = [:]
-    private let logger = ConsoleLogger(name: "MeetingModule")
+    private let logger = ConsoleLogger(name: "MeetingModule", level: .OFF)
     public weak var eventEmitter: RCTEventEmitter?
+    public var mapQueue = [Int: Queuer]()
     
     @objc(shared)
     static func shared() -> MeetingModule {
@@ -31,7 +32,15 @@ class MeetingModule: NSObject {
         }
         return sharedInstance!
     }
-    
+    func getTileQueue(_ tileId: Int) -> Queuer {
+        if let queue = mapQueue[tileId] {
+            return queue
+        }
+        let queue = Queuer(name: "QueuerTile_\(tileId)")
+        queue.maxConcurrentOperationCount = 1
+        mapQueue[tileId] = queue
+        return queue
+    }
     func prepareMeeting(meetingId: String,
                         selfName: String,
                         option: CallKitOption,
@@ -134,6 +143,7 @@ class MeetingModule: NSObject {
     
     @objc(prepareMeetingWithJson:completion:)
     func prepareMeetingWithJson(json: [String:Any]?, completion: @escaping (Bool) -> Void) {
+        logger.setLogLevel(level: .OFF)
         let option = CallKitOption.disabled
         requestRecordPermission { success in
             guard success else {

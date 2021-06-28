@@ -10,7 +10,7 @@ import AmazonChimeSDK
 import Foundation
 
 class InAppScreenCaptureModel {
-    let logger = ConsoleLogger(name: "InAppScreenCaptureModel")
+    let logger = ConsoleLogger(name: "InAppScreenCaptureModel", level: .OFF)
     let contentShareController: ContentShareController
     var isSharingHandler: ((Bool) -> Void)?
 

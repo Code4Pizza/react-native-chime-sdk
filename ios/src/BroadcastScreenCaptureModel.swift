@@ -16,7 +16,7 @@ class BroadcastScreenCaptureModel {
     let userDefaultsKeyExternalMeetingId = "demoExternalMeetingId"
     let userDefaultsKeyCredentials = "demoMeetingCredentials"
     let userDefaultsKeyUrls = "demoMeetingUrls"
-    let logger = ConsoleLogger(name: "BroadcastScreenCaptureModel")
+    let logger = ConsoleLogger(name: "BroadcastScreenCaptureModel", level: .OFF)
     var observer: NSKeyValueObservation?
 
     var isBlocked = true {

@@ -12,7 +12,7 @@ import UIKit
 class RosterModel: NSObject {
     private static let contentDelimiter = "#content"
     private static let contentSuffix = "<<Content>>"
-    private let logger = ConsoleLogger(name: "RosterModel")
+    private let logger = ConsoleLogger(name: "RosterModel", level: .OFF)
 
     private var activeSpeakerIds: [String] = []
     private var attendees = [RosterAttendee]()

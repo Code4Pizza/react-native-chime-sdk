@@ -23,7 +23,7 @@ class VideoModel: NSObject {
 
     var videoUpdatedHandler: (() -> Void)?
     var localVideoUpdatedHandler: (() -> Void)?
-    let logger = ConsoleLogger(name: "VideoModel")
+    let logger = ConsoleLogger(name: "VideoModel", level: .OFF)
 
     init(audioVideoFacade: AudioVideoFacade, eventAnalyticsController: EventAnalyticsController) {
         self.audioVideoFacade = audioVideoFacade
@@ -226,6 +226,10 @@ class VideoModel: NSObject {
         }
         remoteVideoTileStates.append((videoTileState.tileId, videoTileState))
         completion(true)
+    }
+    
+    func removeAllTileStateForId(_ attendeeId: String) {
+        remoteVideoTileStates = remoteVideoTileStates.filter { $0.1.attendeeId != attendeeId }
     }
     
     func getRemoteVideoTileState(_ attendeeId: String) -> VideoTileState? {
