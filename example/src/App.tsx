@@ -1,73 +1,85 @@
 import * as React from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import { StyleSheet, View, Text, Button, requireNativeComponent, FlatList, SafeArea} from 'react-native';
-import ChimeSdk from 'react-native-chime-sdk';
-const NativeChimeVideoView = requireNativeComponent('RNChimeVideoView');
-
-export default function App() {
-  const [members, setMembers] = React.useState([]);
-
-  React.useEffect(() => {
   }, []);
 
-  const joinMeeting = React.useCallback(() => {
-    ChimeSdk.getJsonMeeting("654321", "nguyenphu2810@gmail.com").then( (json) => {
-        console.log("+++ ok result ", json);
-        if (json) {
-          ChimeSdk.startMeeting(json).then((success) => {
-            console.log("+++ ok result success ", success);
-          });
-        }
-      }
-    );
-  }, []);
-
-  const leaveMeeting = React.useCallback(() => {
-    ChimeSdk.endActiveMeeting();
-  }, []);
-
-  const getParticipants = React.useCallback(() => {
-    ChimeSdk.getParticipants().then((list) => {
-      setMembers(list);
-      console.log('+++ participants ', list);
+  const join = () => {
+    joinMeeting({
+      meetingUrl: 'http://6dffed99a61f.ngrok.io/',
+      meetingId: 'klplpsssp',
+      attendeeName: 'The Anh',
     });
-  }, []);
+  };
 
-  const renderItem = React.useCallback(({item}) => {
-    return (
-      <NativeChimeVideoView
-        style={{width: 100, height: 100}}
-        userID={item.zoomId}
-      />
-    );
-  }, []);
+  const leave = () => {
+    leaveCurrentMeeting();
+  };
+
+  const getParty = async () => {
+    let data = await getParticipants();
+    // @ts-ignore
+    data.members.forEach((user) => {
+      console.log(user.userID + '-' + user.userName);
+    });
+    // etUserList(data.members);
+  };
+
+  // @ts-ignore
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const onViewableItemChanged = useRef(({ viewableItems, changed }) => {
+    let maps = new Map();
+    viewableItems.map((item: { index: any }) => {
+      maps.set(item.index, true);
+    });
+    setMap(maps);
+  });
 
   return (
     <View style={styles.container}>
-      <View style={{height: 50}}></View>
-      <Button
-        onPress={joinMeeting}
-        title="Join"
-        color="#841584"
-        accessibilityLabel="Learn more about this purple button"
-      />
-      <Button
-        onPress={leaveMeeting}
-        title="Leave"
-        color="#841584"
-        accessibilityLabel="Learn more about this purple button"
-      />
-      <Button
-        onPress={getParticipants}
-        title="Participants"
-        color="#841584"
-        accessibilityLabel="Learn more about this purple button"
-      />
+      {/* <Text>Result: {result}</Text> */}
+      <View style={[{ width: '90%', margin: 5, backgroundColor: 'red' }]}>
+        <Button title="Join" onPress={join} color="#FFAa00" />
+      </View>
+      <View style={{ height: 5 }} />
+      <View style={[{ width: '90%', margin: 5, backgroundColor: 'red' }]}>
+        <Button title="Leave" onPress={leave} color="#FF3D00" />
+      </View>
+      <View style={{ height: 5 }} />
+      <Button title="Get party" onPress={getParty} />
+      <View style={{ height: 5 }} />
+      <Text style={{ color: '#f44336' }}>{status}</Text>
       <FlatList
-        style={{flex: 1}}
-        data={members}
-        renderItem={renderItem}
-        keyExtractor={item => item.userName}
+        horizontal={true}
+        onViewableItemsChanged={onViewableItemChanged.current}
+        data={userList}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            // @ts-ignore
+            key={item.userID}
+            onPress={async () => {
+              // let { info } = await getUserInfoZoom(item.userID);
+              // console.log(info.userName + '-' + info.avatarPath);
+            }}
+          >
+            <View
+              style={{
+                width: 300,
+                height: 300,
+                borderRadius: 30,
+                overflow: 'hidden',
+                margin: 16,
+              }}
+            >
+              <RNChimeView
+                style={{ width: 300, height: 300, borderRadius: 30 }}
+                // @ts-ignore
+                userID={map.has(index) ? item.userID : ''}
+              />
+            </View>
+          </TouchableOpacity>
+        )}
+        // @ts-ignore
+        keyExtractor={(item, index) => index.toString()}
       />
     </View>
   );
@@ -76,6 +88,8 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
+    // justifyContent: 'center',
   },
   box: {
     width: 60,

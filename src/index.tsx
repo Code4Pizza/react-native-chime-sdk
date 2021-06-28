@@ -11,19 +11,14 @@ const eventEmitter = new NativeEventEmitter(ChimeSdk);
 const NativeChimeView = requireNativeComponent('RNChimeVideoView');
 const NativeChimeShareView = requireNativeComponent('RNChimeShareView');
 
+export const initSdk = () => {};
+
 export const joinMeeting = (meetingInfo: object) => {
   ChimeSdk.joinMeeting(meetingInfo);
 };
 
 export const leaveCurrentMeeting = () => {
   ChimeSdk.leaveCurrentMeeting();
-};
-
-export const onEventListener = (onEvent = () => {}) => {
-  eventEmitter.addListener(
-    'onChimeMeetingEvent',
-    onEvent
-  );
 };
 
 export const onMyAudio = () => {
@@ -37,6 +32,8 @@ export const offMyAudio = () => {
 export const onOffMyVideo = () => {
   ChimeSdk.onOffMyVideo();
 };
+
+export const switchCamera = () => {};
 
 export const getParticipants = () => {
   return new Promise((res) => {
@@ -54,17 +51,12 @@ export const getUserInfo = (userID: string) => {
   });
 };
 
-export const removeListener = () => {
-  eventEmitter.removeAllListeners('onChimeMeetingEvent');
+export const onEventListener = (onEvent = () => {}) => {
+  eventEmitter.addListener('onChimeMeetingEvent', onEvent);
 };
 
-export const RNChimeShareView = (props: any) => {
-  return (
-    <NativeChimeShareView
-      // @ts-ignore
-      style={props.style}
-    />
-  );
+export const removeListener = () => {
+  eventEmitter.removeAllListeners('onChimeMeetingEvent');
 };
 
 const RNChimeView = (props: any) => {
@@ -76,5 +68,13 @@ const RNChimeView = (props: any) => {
     />
   );
 };
+
+export const RNChimeShareView = (props: any) => {
+  return (
+    <NativeChimeShareView
+      // @ts-ignore
+      style={props.style}
+    />
+  );
 
 export default RNChimeView;
