@@ -6,8 +6,10 @@ import {
 } from 'react-native';
 
 const { ChimeSdk } = NativeModules;
-const NativeChimeView = requireNativeComponent('ChimeVideoView');
 const eventEmitter = new NativeEventEmitter(ChimeSdk);
+
+const NativeChimeView = requireNativeComponent('RNChimeVideoView');
+const NativeChimeShareView = requireNativeComponent('RNChimeShareView');
 
 export const initSdk = () => {};
 
@@ -30,6 +32,7 @@ export const offMyAudio = () => {
 export const onOffMyVideo = () => {
   ChimeSdk.onOffMyVideo();
 };
+
 export const switchCamera = () => {};
 
 export const getParticipants = () => {
@@ -65,5 +68,13 @@ const RNChimeView = (props: any) => {
     />
   );
 };
+
+export const RNChimeShareView = (props: any) => {
+  return (
+    <NativeChimeShareView
+      // @ts-ignore
+      style={props.style}
+    />
+  );
 
 export default RNChimeView;
