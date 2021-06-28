@@ -2,20 +2,21 @@ package com.reactnativechimesdk.views;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.DefaultVideoRenderView;
-import com.annimon.stream.Stream;
-import com.reactnativechimesdk.MeetingModel;
 import com.reactnativechimesdk.R;
+import com.reactnativechimesdk.data.VideoCollectionTile;
+
+import static com.reactnativechimesdk.MeetingModel.meetingModel;
 
 public class ChimeShareView extends FrameLayout {
 
-  private DefaultVideoRenderView renderView;
-  private String attendeeId;
+  private static final String TAG = "ChimeShareView";
 
   public ChimeShareView(@NonNull Context context) {
     super(context);
@@ -32,33 +33,20 @@ public class ChimeShareView extends FrameLayout {
   @Override
   protected void onFinishInflate() {
     super.onFinishInflate();
-    renderView = findViewById(R.id.videoView);
-  }
-
-  public void bindVideoTile(String attendeeId) {
-    boolean viewVisible = !attendeeId.isEmpty();
-    if (viewVisible) {
-      this.attendeeId = attendeeId;
-      bind();
-    } else {
-      unbind();
+    DefaultVideoRenderView renderView = findViewById(R.id.videoView);
+    VideoCollectionTile shareTile = meetingModel().getShareVideoTile();
+    if (shareTile != null) {
+      meetingModel().getAudioVideo().bindVideoView(renderView, shareTile.getVideoTileState().getTileId());
     }
   }
 
-  private void bind() {
-    Stream.of(MeetingModel.meetingModel().getVideoTiles())
-      .filter(it -> it.getVideoTileState().getAttendeeId().equals(ChimeShareView.this.attendeeId))
-      .findSingle()
-      .executeIfPresent(v -> {
-        MeetingModel.meetingModel().getAudioVideo().bindVideoView(renderView, v.getVideoTileState().getTileId());
-      });
+  @Override
+  protected void onDetachedFromWindow() {
+    super.onDetachedFromWindow();
+    Log.d(TAG, "onDetachedFromWindow: ");
+    VideoCollectionTile shareTile = meetingModel().getShareVideoTile();
+    if (shareTile != null) {
+      meetingModel().getAudioVideo().unbindVideoView(shareTile.getVideoTileState().getTileId());
+    }
   }
-
-  private void unbind() {
-    Stream.of(MeetingModel.meetingModel().getVideoTiles())
-      .filter(it -> it.getVideoTileState().getAttendeeId().equals(ChimeShareView.this.attendeeId))
-      .findSingle()
-      .executeIfPresent(v -> MeetingModel.meetingModel().getAudioVideo().unbindVideoView(v.getVideoTileState().getTileId()));
-  }
-
 }

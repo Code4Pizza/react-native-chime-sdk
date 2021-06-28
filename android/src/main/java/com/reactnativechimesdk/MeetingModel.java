@@ -52,6 +52,8 @@ public class MeetingModel {
   private Set<VideoCollectionTile> videoTiles = new HashSet<>();
   private final MutableLiveData<Set<VideoCollectionTile>> videoTilesLive = new MutableLiveData<>();
 
+  private VideoCollectionTile shareVideoTile;
+
   public Set<VideoCollectionTile> getVideoTiles() {
     return videoTiles;
   }
@@ -155,6 +157,10 @@ public class MeetingModel {
     if (audioVideo == null) {
       return;
     }
+    Stream.of(videoTiles).forEach(it -> audioVideo.unbindVideoView(it.getVideoTileState().getTileId()));
+    if (shareVideoTile != null) {
+      audioVideo.unbindVideoView(shareVideoTile.getVideoTileState().getTileId());
+    }
     audioVideo.stopLocalVideo();
     audioVideo.stopRemoteVideo();
     audioVideo.stopContentShare();
@@ -220,4 +226,11 @@ public class MeetingModel {
     videoTilesLive.postValue(new HashSet<>(Collections.emptyList()));
   }
 
+  public VideoCollectionTile getShareVideoTile() {
+    return shareVideoTile;
+  }
+
+  public void setShareVideoTile(VideoCollectionTile shareVideoTile) {
+    this.shareVideoTile = shareVideoTile;
+  }
 }

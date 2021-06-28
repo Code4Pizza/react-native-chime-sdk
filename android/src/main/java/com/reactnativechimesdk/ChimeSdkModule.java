@@ -335,16 +335,17 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   @Override
   public void onVideoTileAdded(@NonNull VideoTileState tileState) {
     if (tileState.isContent()) {
-      handleShareVideoTileAdded(tileState.getAttendeeId());
+      handleShareVideoTileAdded(tileState);
     } else {
       handleVideoTileAdded(tileState);
     }
   }
 
-  private void handleShareVideoTileAdded(String attendeeId) {
-    RosterAttendee attendee = meetingModel().getAttendee(attendeeId);
-    boolean isCameraOn = meetingModel().isCameraAttendeeOn(attendeeId);
+  private void handleShareVideoTileAdded(VideoTileState tile) {
+    RosterAttendee attendee = meetingModel().getAttendee(tile.getAttendeeId());
+    boolean isCameraOn = meetingModel().isCameraAttendeeOn(tile.getAttendeeId());
     sendMeetingUserShareEvent(getReactApplicationContext(), MEETING_ACTIVE_SHARE, attendee, isCameraOn, SHARE_STATUS_START);
+    meetingModel().setShareVideoTile(new VideoCollectionTile(tile));
   }
 
   private void handleVideoTileAdded(VideoTileState tile) {
@@ -376,6 +377,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     RosterAttendee attendee = meetingModel().getAttendee(attendeeId);
     boolean isCameraOn = meetingModel().isCameraAttendeeOn(attendeeId);
     sendMeetingUserShareEvent(getReactApplicationContext(), MEETING_ACTIVE_SHARE, attendee, isCameraOn, SHARE_STATUS_STOP);
+    meetingModel().setShareVideoTile(null);
   }
 
   private void handleVideoTileRemoved(VideoTileState tile) {
