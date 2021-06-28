@@ -5,6 +5,7 @@ import android.util.Log;
 import androidx.lifecycle.MutableLiveData;
 
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AudioVideoFacade;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoPauseState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory;
@@ -15,11 +16,14 @@ import com.annimon.stream.Stream;
 import com.reactnativechimesdk.data.RosterAttendee;
 import com.reactnativechimesdk.data.VideoCollectionTile;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class MeetingModel {
 
@@ -34,23 +38,25 @@ public class MeetingModel {
   private MeetingModel() {
   }
 
+  public final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
   public final EglCoreFactory eglCoreFactory = new DefaultEglCoreFactory();
 
   private CameraCaptureSource cameraCaptureSource;
   private AudioVideoFacade audioVideo;
 
   private String localId;
+  private boolean pauseLocalCamera;
 
   private final Map<String, RosterAttendee> currentRoster = new HashMap<>();
 
-  private List<VideoCollectionTile> videoTiles = new ArrayList<>();
-  private final MutableLiveData<List<VideoCollectionTile>> videoTilesLive = new MutableLiveData<>();
+  private Set<VideoCollectionTile> videoTiles = new HashSet<>();
+  private final MutableLiveData<Set<VideoCollectionTile>> videoTilesLive = new MutableLiveData<>();
 
-  public List<VideoCollectionTile> getVideoTiles() {
+  public Set<VideoCollectionTile> getVideoTiles() {
     return videoTiles;
   }
 
-  public MutableLiveData<List<VideoCollectionTile>> getVideoTilesLive() {
+  public MutableLiveData<Set<VideoCollectionTile>> getVideoTilesLive() {
     return videoTilesLive;
   }
 
@@ -60,7 +66,7 @@ public class MeetingModel {
   }
 
   public void removeVideoTile(int tileId) {
-    videoTiles = Stream.of(videoTiles).filter(v -> v.getVideoTileState().getTileId() != tileId).toList();
+    videoTiles = new HashSet<>(Stream.of(videoTiles).filter(v -> v.getVideoTileState().getTileId() != tileId).toList());
     videoTilesLive.postValue(videoTiles);
     if (audioVideo != null) {
       audioVideo.unbindVideoView(tileId);
@@ -111,6 +117,38 @@ public class MeetingModel {
     audioVideo.startLocalVideo(cameraCaptureSource);
     audioVideo.startRemoteVideo();
     cameraCaptureSource.start();
+  }
+
+  public void pauseMeeting() {
+    if (audioVideo == null) {
+      return;
+    }
+    Stream.of(videoTiles).forEach(it -> {
+      if (it.getVideoTileState().getPauseState() == VideoPauseState.Unpaused) {
+        if (it.getVideoTileState().isLocalTile()) {
+          audioVideo.stopLocalVideo();
+          pauseLocalCamera = true;
+        } else {
+          audioVideo.pauseRemoteVideoTile(it.getVideoTileState().getTileId());
+        }
+      }
+    });
+  }
+
+  public void resumeMeeting() {
+    if (audioVideo == null) {
+      return;
+    }
+    Stream.of(videoTiles).forEach(it -> {
+      if (it.getVideoTileState().getPauseState() == VideoPauseState.PausedByUserRequest) {
+        audioVideo.resumeRemoteVideoTile(it.getVideoTileState().getTileId());
+      }
+    });
+    if (pauseLocalCamera) {
+      audioVideo.startLocalVideo(cameraCaptureSource);
+      cameraCaptureSource.start();
+      pauseLocalCamera = false;
+    }
   }
 
   public void endMeeting() {
@@ -164,7 +202,8 @@ public class MeetingModel {
     if (isCameraLocalOn()) {
       audioVideo.stopLocalVideo();
     } else {
-      audioVideo.startLocalVideo();
+      audioVideo.startLocalVideo(cameraCaptureSource);
+      cameraCaptureSource.start();
     }
   }
 
@@ -178,7 +217,7 @@ public class MeetingModel {
   private void cleanup() {
     currentRoster.clear();
     videoTiles.clear();
-    videoTilesLive.postValue(Collections.emptyList());
+    videoTilesLive.postValue(new HashSet<>(Collections.emptyList()));
   }
 
 }

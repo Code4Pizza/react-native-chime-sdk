@@ -18,7 +18,7 @@ public class ChimeShareViewManager extends SimpleViewManager<ChimeShareView> {
   @NotNull
   @Override
   public String getName() {
-    return "RNShareViewChimeSdk";
+    return "RNChimeShareView";
   }
 
   @NonNull

@@ -202,9 +202,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       meetingModel().getAudioVideo().addVideoTileObserver(this);
       meetingModel().getAudioVideo().addDeviceChangeObserver(this);
       meetingModel().getAudioVideo().addContentShareObserver(this);
-      if (BuildConfig.DEBUG) {
-        meetingModel().getAudioVideo().addMetricsObserver(this);
-      }
+      meetingModel().getAudioVideo().addMetricsObserver(this);
       meetingModel().startMeeting();
     } else {
       showToast("Failed to join meeting");
@@ -225,7 +223,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       List<VideoCaptureFormat> formats = MediaDevice.Companion.listSupportedVideoCaptureFormats(cameraManager, cameraCaptureSource.getDevice());
       Stream.of(formats)
         .filter(it -> it.getHeight() <= MAX_VIDEO_FORMAT_HEIGHT)
-        .findLast()
+        .findFirst()
         .ifPresent(it -> cameraCaptureSource.setFormat(new VideoCaptureFormat(it.getWidth(), it.getHeight(), MAX_VIDEO_FORMAT_FPS)));
     } catch (Exception e) {
       Log.e(TAG, "Media devices not found");
@@ -315,13 +313,11 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       );
       RosterAttendee newAttendee = meetingModel().getAttendee(it.getAttendeeId());
       if (meetingModel().isLocal(newAttendee.getAttendeeId())) {
-        Log.d(TAG, "local attendee joined: " + it.getAttendeeId());
         sendMeetingStateEvent(getReactApplicationContext(), "meeting_ready");
-      } else {
-        Log.d(TAG, "remote attendee joined: " + it.getAttendeeId());
-        boolean isCameraOn = meetingModel().isCameraAttendeeOn(it.getAttendeeId());
-        sendMeetingUserEvent(getReactApplicationContext(), MEETING_USER_JOIN, newAttendee, isCameraOn);
       }
+      Log.d(TAG, "attendee joined: " + it.getAttendeeId());
+      boolean isCameraOn = meetingModel().isCameraAttendeeOn(it.getAttendeeId());
+      sendMeetingUserEvent(getReactApplicationContext(), MEETING_USER_JOIN, newAttendee, isCameraOn);
     });
   }
 
@@ -423,10 +419,13 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   @Override
   public void onHostResume() {
     getReactApplicationContext().registerReceiver(moduleConfigReceiver, intentFilter);
+    meetingModel().resumeMeeting();
   }
 
   @Override
   public void onHostPause() {
+    Log.d(TAG, "onHostPause: " );
+    meetingModel().pauseMeeting();
   }
 
   @Override
