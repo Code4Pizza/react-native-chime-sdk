@@ -15,7 +15,7 @@ public class ChimeVideoViewManager extends SimpleViewManager<ChimeView> {
   @NonNull
   @Override
   public String getName() {
-    return "ChimeVideoView";
+    return "RNChimeVideoView";
   }
 
   @NonNull
