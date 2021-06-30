@@ -62,7 +62,7 @@ class DeviceSelectionModel {
             return nil
         }
         
-        return VideoCaptureFormat(width: 420, height: 240, maxFrameRate: 15)
+        return VideoCaptureFormat(width: 360, height: 240, maxFrameRate: 15)
 //        let formats = supportedVideoFormat[selectedVideoDeviceIndex]
 //        for format in formats {
 //            if format {

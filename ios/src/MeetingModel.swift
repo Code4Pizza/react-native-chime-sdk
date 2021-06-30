@@ -355,7 +355,7 @@ extension MeetingModel: AudioVideoObserver {
         notifyHandler?("Audio successfully started. Reconnecting: \(reconnecting)")
         logWithFunctionName(message: "reconnecting \(reconnecting)")
         // Start Amazon Voice Focus as soon as audio session started
-        setVoiceFocusEnabled(enabled: true)
+        setVoiceFocusEnabled(enabled: false)
         if !reconnecting {
             call?.isConnectedHandler?()
         }
