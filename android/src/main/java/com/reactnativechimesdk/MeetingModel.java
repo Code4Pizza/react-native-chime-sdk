@@ -27,8 +27,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 public class MeetingModel {
 
-  private static final String TAG = "MeetingModel";
-
   private static final MeetingModel ourInstance = new MeetingModel();
 
   public static MeetingModel meetingModel() {
@@ -51,6 +49,8 @@ public class MeetingModel {
 
   private Set<VideoCollectionTile> videoTiles = new HashSet<>();
   private final MutableLiveData<Set<VideoCollectionTile>> videoTilesLive = new MutableLiveData<>();
+
+  private VideoCollectionTile shareVideoTile;
 
   public Set<VideoCollectionTile> getVideoTiles() {
     return videoTiles;
@@ -155,6 +155,10 @@ public class MeetingModel {
     if (audioVideo == null) {
       return;
     }
+    Stream.of(videoTiles).forEach(it -> audioVideo.unbindVideoView(it.getVideoTileState().getTileId()));
+    if (shareVideoTile != null) {
+      audioVideo.unbindVideoView(shareVideoTile.getVideoTileState().getTileId());
+    }
     audioVideo.stopLocalVideo();
     audioVideo.stopRemoteVideo();
     audioVideo.stopContentShare();
@@ -167,7 +171,7 @@ public class MeetingModel {
     if (audioVideo == null) {
       return;
     }
-    audioVideo.realtimeSetVoiceFocusEnabled(true);
+    // audioVideo.realtimeSetVoiceFocusEnabled(true);
     selectAudioDevice(audioVideo.listAudioDevices());
   }
 
@@ -179,7 +183,7 @@ public class MeetingModel {
       .filter(it -> it.getType() != MediaDeviceType.OTHER)
       .findLast()
       .executeIfPresent(it -> {
-        Log.d(TAG, "choose audio device " + it.getType());
+        Log.d("ChimeSdkModule", "choose audio device " + it.getType());
         audioVideo.chooseAudioDevice(it);
       });
   }
@@ -220,4 +224,11 @@ public class MeetingModel {
     videoTilesLive.postValue(new HashSet<>(Collections.emptyList()));
   }
 
+  public VideoCollectionTile getShareVideoTile() {
+    return shareVideoTile;
+  }
+
+  public void setShareVideoTile(VideoCollectionTile shareVideoTile) {
+    this.shareVideoTile = shareVideoTile;
+  }
 }
