@@ -39,6 +39,6 @@ public interface SimpleRealTimeObserver extends RealtimeObserver {
 
   @Override
   default void onVolumeChanged(@NonNull VolumeUpdate[] volumeUpdates) {
-
+    // Stream.of(volumeUpdates).forEach(it -> Log.d(TAG, "onVolumeChanged: "  + it.getAttendeeInfo().getExternalUserId() + " - " + it.getVolumeLevel()));
   }
 }

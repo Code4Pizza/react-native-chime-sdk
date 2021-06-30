@@ -20,7 +20,7 @@ public interface SimpleAudioVideoObserver extends AudioVideoObserver {
 
   @Override
   default void onAudioSessionDropped() {
-
+    Log.e(TAG, "onAudioSessionDropped: ");
   }
 
   @Override
@@ -39,12 +39,12 @@ public interface SimpleAudioVideoObserver extends AudioVideoObserver {
 
   @Override
   default void onConnectionBecamePoor() {
-
+    Log.e(TAG, "onConnectionBecamePoor: ");
   }
 
   @Override
   default void onConnectionRecovered() {
-
+    Log.e(TAG, "onConnectionRecovered: ");
   }
 
   @Override

@@ -224,7 +224,10 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       Stream.of(formats)
         .filter(it -> it.getHeight() <= MAX_VIDEO_FORMAT_HEIGHT)
         .findFirst()
-        .ifPresent(it -> cameraCaptureSource.setFormat(new VideoCaptureFormat(it.getWidth(), it.getHeight(), MAX_VIDEO_FORMAT_FPS)));
+        .ifPresent(it -> {
+          Log.d(TAG, "choose video format " + it.getWidth() + "x" + it.getHeight());
+          cameraCaptureSource.setFormat(new VideoCaptureFormat(it.getWidth(), it.getHeight(), MAX_VIDEO_FORMAT_FPS));
+        });
     } catch (Exception e) {
       Log.e(TAG, "Media devices not found");
     }
