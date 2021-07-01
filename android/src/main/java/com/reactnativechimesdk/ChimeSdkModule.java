@@ -273,11 +273,28 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   @ReactMethod
   public void onMyAudio() {
     meetingModel().onOffAudio(true);
+    sendAudioStatusEvent(meetingModel().getLocalAttendee(), true);
   }
 
   @ReactMethod
   public void offMyAudio() {
     meetingModel().onOffAudio(false);
+    sendAudioStatusEvent(meetingModel().getLocalAttendee(), false);
+  }
+
+  private void sendAudioStatusEvent(RosterAttendee current, boolean on) {
+    if (current == null) {
+      return;
+    }
+    meetingModel().getCurrentRoster().put(current.getAttendeeId(),
+      new RosterAttendee(
+        current.getAttendeeId(),
+        current.getAttendeeName(),
+        on
+      ));
+    boolean isCameraOn = meetingModel().isCameraAttendeeOn(current.getAttendeeId());
+    RosterAttendee attendee = meetingModel().getAttendee(current.getAttendeeId());
+    sendMeetingUserEvent(getReactApplicationContext(), MEETING_AUDIO_STATUS_CHANGE, attendee, isCameraOn);
   }
 
   @ReactMethod
@@ -292,6 +309,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onAudioSessionStarted(boolean reconnecting) {
+    Log.d(TAG, "onAudioSessionStarted: ");
     meetingModel().initMediaDevice();
   }
 
@@ -393,14 +411,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   public void onAttendeesMuted(@NonNull AttendeeInfo[] attendeeInfos) {
     Stream.of(attendeeInfos).forEach(it -> {
         RosterAttendee current = meetingModel().getAttendee(it.getAttendeeId());
-        RosterAttendee attendee = meetingModel().getCurrentRoster().put(it.getAttendeeId(),
-          new RosterAttendee(
-            current.getAttendeeId(),
-            current.getAttendeeName(),
-            true
-          ));
-        boolean isCameraOn = meetingModel().isCameraAttendeeOn(it.getAttendeeId());
-        sendMeetingUserEvent(getReactApplicationContext(), MEETING_AUDIO_STATUS_CHANGE, attendee, isCameraOn);
+        sendAudioStatusEvent(current, false);
       }
     );
   }
@@ -409,14 +420,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   public void onAttendeesUnmuted(@NonNull AttendeeInfo[] attendeeInfos) {
     Stream.of(attendeeInfos).forEach(it -> {
         RosterAttendee current = meetingModel().getAttendee(it.getAttendeeId());
-        RosterAttendee attendee = meetingModel().getCurrentRoster().put(it.getAttendeeId(),
-          new RosterAttendee(
-            current.getAttendeeId(),
-            current.getAttendeeName(),
-            true
-          ));
-        boolean isCameraOn = meetingModel().isCameraAttendeeOn(it.getAttendeeId());
-        sendMeetingUserEvent(getReactApplicationContext(), MEETING_AUDIO_STATUS_CHANGE, attendee, isCameraOn);
+        sendAudioStatusEvent(current, true);
       }
     );
   }

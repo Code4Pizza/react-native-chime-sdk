@@ -109,6 +109,13 @@ public class MeetingModel {
     return currentRoster.get(attendeeId);
   }
 
+  public RosterAttendee getLocalAttendee() {
+    if (localId == null) {
+      return null;
+    }
+    return currentRoster.get(localId);
+  }
+
   public void startMeeting() {
     if (audioVideo == null) {
       return;
@@ -192,11 +199,13 @@ public class MeetingModel {
     if (audioVideo == null) {
       return;
     }
+    boolean rs;
     if (on) {
-      audioVideo.realtimeLocalUnmute();
+      rs = audioVideo.realtimeLocalUnmute();
     } else {
-      audioVideo.realtimeLocalMute();
+      rs = audioVideo.realtimeLocalMute();
     }
+    Log.d("ChimeSDK", (on ? "on audio " : "off audio ") + (rs ? "success " : "failed"));
   }
 
   public void onOffVideo() {
