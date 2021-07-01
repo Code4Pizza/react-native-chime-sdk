@@ -585,9 +585,24 @@ extension MeetingModel: MetricsObserver {
 
 extension MeetingModel: DeviceChangeObserver {
     func audioDeviceDidChange(freshAudioDeviceList: [MediaDevice]) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.selectNewAudioDevices()
+        }
+        
         let deviceLabels: [String] = freshAudioDeviceList.map { device in "* \(device.label) (\(device.type))" }
         logger.info(msg: deviceLabels.joined(separator: "\n"))
         notifyHandler?("Device availability changed:\nAvailable Devices:\n\(deviceLabels.joined(separator: "\n"))")
+    }
+    func selectNewAudioDevices() {
+        if audioDevices.count > 0 {
+            var audioDevice = audioDevices[0];
+            for item in audioDevices {
+                if audioDevice.type.rawValue > item.type.rawValue {
+                    audioDevice = item
+                }
+            }
+            self.chooseAudioDevice(audioDevice)
+        }
     }
 }
 

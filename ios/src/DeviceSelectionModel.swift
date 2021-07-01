@@ -36,18 +36,14 @@ class DeviceSelectionModel {
     }
 
     var selectedAudioDevice: MediaDevice {
+        var audioDevice = audioDevices[0];
         for item in audioDevices {
-            if item.type == .audioBluetooth {
-                return item
-            }
-            if item.type == .audioWiredHeadset {
-                return item
-            }
-            if item.type == .audioBuiltInSpeaker {
-                return item
+            if audioDevice.type.rawValue > item.type.rawValue {
+                audioDevice = item
             }
         }
-        return audioDevices[selectedAudioDeviceIndex]
+        return audioDevice
+        //return audioDevices[selectedAudioDeviceIndex]
     }
 
     var selectedVideoDevice: MediaDevice? {
