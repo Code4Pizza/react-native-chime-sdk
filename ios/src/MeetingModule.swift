@@ -78,6 +78,7 @@ class MeetingModule: NSObject {
     }
     @objc(onMyAudio)
     func onMyAudio() {
+        configureAudioSession()
         activeMeeting?.setMute(isMuted: false)
     }
     
@@ -318,8 +319,8 @@ class MeetingModule: NSObject {
                                              options: AVAudioSession.CategoryOptions.allowBluetooth)
                 try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
             }
-            if audioSession.mode != .voiceChat {
-                try audioSession.setMode(.voiceChat)
+            if audioSession.mode != .videoChat {
+                try audioSession.setMode(.videoChat)
             }
         } catch {
             logger.error(msg: "Error configuring AVAudioSession: \(error.localizedDescription)")
