@@ -34,6 +34,8 @@ public class Queuer {
     /// Queuer `OperationQueue`.
     public let queue = OperationQueue()
     
+    public var lastOperationId = ""
+    
     /// Total `Operation` count in queue.
     public var operationCount: Int {
         return queue.operationCount
@@ -125,6 +127,7 @@ public extension Queuer {
     ///
     /// - Parameter block: Block to be executed.
     func addOperation(_ operation: @escaping () -> Void) {
+        lastOperationId = ""
         queue.addOperation(operation)
     }
     
@@ -132,6 +135,7 @@ public extension Queuer {
     ///
     /// - Parameter operation: `Operation` to be executed.
     func addOperation(_ operation: Operation) {
+        lastOperationId = operation.name ?? ""
         queue.addOperation(operation)
     }
     

@@ -13,7 +13,7 @@ import AmazonChimeSDK
 public class UserVideoView: UIView {
     
     var videoView = DefaultVideoRenderView(frame: .zero)
-    var isBind = false
+    
     var currentAttendeeId: String?
     
     public override func layoutSubviews() {
@@ -63,58 +63,68 @@ public class UserVideoView: UIView {
                 if let attendee = MeetingModule.shared().activeMeeting?.rosterModel.getAttendee(attendeeId: attendeeId) {
                     print("+++ bind video ", attendee.attendeeName);
                 }
-                //if videoTileState.pauseState == .unpaused {
-                MeetingModule.shared().getTileQueue(videoTileState.tileId).addOperation (
-                    SynchronousOperation { _ in
-                        Thread.sleep(forTimeInterval: 0.10)
-                        MeetingModule.shared().activeMeeting?.currentMeetingSession.audioVideo.resumeRemoteVideoTile(tileId: videoTileState.tileId)
+                let queue = MeetingModule.shared().getTileQueue(videoTileState.tileId)
+                let operationId = UUID().uuidString
+                let operation = SynchronousOperation { _ in
+                    if (queue.lastOperationId == operationId) {
+                        Thread.sleep(forTimeInterval: 1.5)
+                        if (queue.lastOperationId == operationId) {
+                            print("+++ thuc thi resume")
+                            MeetingModule.shared().activeMeeting?.currentMeetingSession.audioVideo.resumeRemoteVideoTile(tileId: videoTileState.tileId)
+                        }
+                        else {
+                            //print("+++ bo qua resume")
+                        }
                     }
-                )
-                
+                    else {
+                        //print("+++ bo qua resume")
+                    }
+                }
+                operation.name = operationId
+                MeetingModule.shared().getTileQueue(videoTileState.tileId).addOperation(operation)
                 MeetingModule.shared().activeMeeting?.bind(videoRenderView: self.videoView, tileId: videoTileState.tileId)
-//                }
-//                else {
-//                    self.videoView.isHidden = true
-//                }
-                isBind = true
             }
             else {
                 self.videoView.isHidden = true
             }
-        }
-        else {
-            self.videoView.isHidden = true
         }
     }
     func stopVideoAttendee(_ sendNotification: Bool = false) {
         if let currentAttendeeId = currentAttendeeId,
            currentAttendeeId.count > 0
         {
+            if let attendee = MeetingModule.shared().activeMeeting?.rosterModel.getAttendee(attendeeId: currentAttendeeId) {
+                print("+++ unbind video ", attendee.attendeeName);
+            }
+            self.currentAttendeeId = ""
+            
             if let videoTileState = MeetingModule.shared().activeMeeting?.videoModel.getRemoteVideoTileState(currentAttendeeId)
             {
-                self.videoView.isHidden = true
-                self.currentAttendeeId = ""
-                //MeetingModule.shared().activeMeeting?.currentMeetingSession.audioVideo.unbindVideoView(tileId: videoTileState.tileId)
-                //MeetingModule.shared().activeMeeting?.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: videoTileState.tileId)
-                MeetingModule.shared().getTileQueue(videoTileState.tileId).addOperation (
-                    SynchronousOperation { _ in
-                        Thread.sleep(forTimeInterval: 0.10)
-                        MeetingModule.shared().activeMeeting?.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: videoTileState.tileId)
+                let queue = MeetingModule.shared().getTileQueue(videoTileState.tileId)
+                let operationId = UUID().uuidString
+                let operation = SynchronousOperation { _ in
+                    if (queue.lastOperationId == operationId) {
+                        Thread.sleep(forTimeInterval: 1.5)
+                        if (queue.lastOperationId == operationId) {
+                            print("+++ thuc thi pause")
+                            MeetingModule.shared().activeMeeting?.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: videoTileState.tileId)
+                        }
+                        else {
+                            //print("+++ bo qua pause")
+                        }
                     }
-                )
+                    else {
+                        //print("+++ bo qua pause")
+                    }
+                }
+                operation.name = operationId
+                queue.addOperation(operation)
                 if sendNotification {
-                    //let deadlineTime = DispatchTime.now() + .seconds(6)
                     DispatchQueue.main.async {
                         NotificationCenter.default.post(name: Notification.Name("onUserVideoStatusChangedChime"), object: nil, userInfo: ["userID" : videoTileState.attendeeId])
                     }
-                    
                 }
-                //videoView.resetImage()
-                isBind = false
             }
-        }
-        else {
-            self.videoView.isHidden = true
         }
     }
     deinit {
