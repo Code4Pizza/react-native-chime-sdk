@@ -17,6 +17,11 @@ public class EventEmitter {
   public static final String MEETING_AUDIO_STATUS_CHANGE = "onSinkMeetingAudioStatusChange";
   public static final String MEETING_VIDEO_STATUS_CHANGE = "onSinkMeetingVideoStatusChange";
 
+  public static final String MEETING_READY = "meeting_ready";
+  public static final String MEETING_END = "meeting_end";
+  public static final String MEETING_AUDIO_DEVICE_CHANGED = "audio_device_changed";
+  public static final String MEETING_VIDEO_DEVICE_CHANGED = "video_device_Changed";
+
   public static final String KEY_EVENT = "event";
   public static final String KEY_DES = "des";
   public static final String KEY_USER_NAME = "userName";

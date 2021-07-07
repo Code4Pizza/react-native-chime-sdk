@@ -1,5 +1,7 @@
 package com.reactnativechimesdk;
 
+import android.content.Context;
+import android.hardware.camera2.CameraManager;
 import android.util.Log;
 
 import androidx.lifecycle.MutableLiveData;
@@ -7,6 +9,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AudioVideoFacade;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoPauseState;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.VideoCaptureFormat;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory;
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
@@ -26,6 +29,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class MeetingModel {
+
+  public static final int MAX_VIDEO_FORMAT_HEIGHT = 240;
+  public static final int MAX_VIDEO_FORMAT_FPS = 15;
 
   private static final MeetingModel ourInstance = new MeetingModel();
 
@@ -75,6 +81,10 @@ public class MeetingModel {
 
   public void setCameraCaptureSource(CameraCaptureSource cameraCaptureSource) {
     this.cameraCaptureSource = cameraCaptureSource;
+  }
+
+  public CameraCaptureSource getCameraCaptureSource() {
+    return cameraCaptureSource;
   }
 
   public void setMeetingSession(MeetingSession meetingSession) {
@@ -174,15 +184,26 @@ public class MeetingModel {
     cleanup();
   }
 
-  public void initMediaDevice() {
+  public void initAudioDevice() {
     if (audioVideo == null) {
       return;
     }
     // audioVideo.realtimeSetVoiceFocusEnabled(true);
-    selectAudioDevice(audioVideo.listAudioDevices());
+    selectLatestAudioDevice(listAudioDevices());
   }
 
-  public void selectAudioDevice(List<MediaDevice> list) {
+  public List<MediaDevice> listAudioDevices() {
+    if (audioVideo == null) {
+      return Collections.emptyList();
+    }
+    return audioVideo.listAudioDevices();
+  }
+
+  /**
+   * select latest audio device when init meeting session or list media devices changed
+   * @param list audio devices
+   */
+  public void selectLatestAudioDevice(List<MediaDevice> list) {
     if (audioVideo == null) {
       return;
     }
@@ -193,6 +214,24 @@ public class MeetingModel {
         Log.d("ChimeSdkModule", "choose audio device " + it.getType());
         audioVideo.chooseAudioDevice(it);
       });
+  }
+
+  /**
+   * audio device selection from user
+   * @param mediaDevice selected device
+   * @return true if found selected on supported media list
+   */
+  public boolean selectAudioDevice(MediaDevice mediaDevice) {
+    if (audioVideo == null) {
+      return false;
+    }
+    return Stream.of(listAudioDevices())
+      .filter(it -> it.getType() == mediaDevice.getType() && it.getLabel().equals(mediaDevice.getLabel()))
+      .findFirst()
+      .executeIfPresent(it -> {
+        Log.d("ChimeSdkModule", "choose audio device " + it.getType());
+        audioVideo.chooseAudioDevice(it);
+      }).isPresent();
   }
 
   public void onOffAudio(boolean on) {
@@ -206,6 +245,36 @@ public class MeetingModel {
       rs = audioVideo.realtimeLocalMute();
     }
     Log.d("ChimeSDK", (on ? "on audio " : "off audio ") + (rs ? "success " : "failed"));
+  }
+
+  public boolean selectVideoDevice(Context context, MediaDevice mediaDevice) {
+    if (cameraCaptureSource == null) {
+      return false;
+    }
+    cameraCaptureSource.setDevice(mediaDevice);
+    Log.d("ChimeSdkModule", "choose video device " + mediaDevice.getType() + " - " + mediaDevice.getLabel());
+    selectDefaultVideoFormat(context);
+    return true;
+  }
+
+  private void selectDefaultVideoFormat(Context context) {
+    if (cameraCaptureSource == null || cameraCaptureSource.getDevice() == null) {
+      return;
+    }
+    CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+    List<VideoCaptureFormat> formats = MediaDevice.Companion.listSupportedVideoCaptureFormats(cameraManager, cameraCaptureSource.getDevice());
+    Stream.of(formats)
+      .filter(it -> it.getHeight() <= MAX_VIDEO_FORMAT_HEIGHT)
+      .findFirst()
+      .ifPresent(it -> {
+        Log.d("ChimeSdkModule", "choose video format " + it.getWidth() + "x" + it.getHeight());
+        cameraCaptureSource.setFormat(new VideoCaptureFormat(it.getWidth(), it.getHeight(), MAX_VIDEO_FORMAT_FPS));
+      });
+  }
+
+  public List<MediaDevice> listVideoDevices(Context context) {
+    CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+    return MediaDevice.Companion.listVideoDevices(cameraManager);
   }
 
   public void onOffVideo() {
