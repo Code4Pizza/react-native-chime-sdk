@@ -22,7 +22,6 @@ import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultCameraCaptureSource;
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultSurfaceTextureCaptureSourceFactory;
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.VideoCaptureFormat;
 import com.amazonaws.services.chime.sdk.meetings.device.DeviceChangeObserver;
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDeviceType;
@@ -36,6 +35,7 @@ import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel;
 import com.annimon.stream.Stream;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.LifecycleEventListener;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -61,6 +61,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 
 import static android.Manifest.permission.CAMERA;
@@ -73,12 +74,17 @@ import static com.reactnativechimesdk.EventEmitter.KEY_USER_ID;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_NAME;
 import static com.reactnativechimesdk.EventEmitter.KEY_VIDEO_STATUS;
 import static com.reactnativechimesdk.EventEmitter.MEETING_ACTIVE_SHARE;
+import static com.reactnativechimesdk.EventEmitter.MEETING_AUDIO_DEVICE_CHANGED;
 import static com.reactnativechimesdk.EventEmitter.MEETING_AUDIO_STATUS_CHANGE;
+import static com.reactnativechimesdk.EventEmitter.MEETING_END;
+import static com.reactnativechimesdk.EventEmitter.MEETING_READY;
 import static com.reactnativechimesdk.EventEmitter.MEETING_USER_JOIN;
 import static com.reactnativechimesdk.EventEmitter.MEETING_USER_LEFT;
+import static com.reactnativechimesdk.EventEmitter.MEETING_VIDEO_DEVICE_CHANGED;
 import static com.reactnativechimesdk.EventEmitter.MEETING_VIDEO_STATUS_CHANGE;
 import static com.reactnativechimesdk.EventEmitter.SHARE_STATUS_START;
 import static com.reactnativechimesdk.EventEmitter.SHARE_STATUS_STOP;
+import static com.reactnativechimesdk.EventEmitter.sendMediaDeviceChangeEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingStateEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingUserEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingUserShareEvent;
@@ -92,9 +98,6 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   private static final String TAG = "ChimeSdkModule";
   private static final ConsoleLogger logger = new ConsoleLogger(LogLevel.INFO);
-
-  private static final int MAX_VIDEO_FORMAT_HEIGHT = 240;
-  private static final int MAX_VIDEO_FORMAT_FPS = 15;
 
   private final int WEBRTC_PERMISSION_REQUEST_CODE = 1030;
   private final List<String> WEBRTC_PERM = Arrays.asList(MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, CAMERA);
@@ -196,7 +199,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       }
       MeetingSession meetingSession = new DefaultMeetingSession(config, logger, getReactApplicationContext(), meetingModel().eglCoreFactory);
       meetingModel().setMeetingSession(meetingSession);
-      meetingModel().setCameraCaptureSource(initCameraCaptureSource());
+      initCameraCaptureSource();
       meetingModel().getAudioVideo().addRealtimeObserver(this);
       meetingModel().getAudioVideo().addAudioVideoObserver(this);
       meetingModel().getAudioVideo().addVideoTileObserver(this);
@@ -209,34 +212,38 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     }
   }
 
-  private CameraCaptureSource initCameraCaptureSource() {
+  private void initCameraCaptureSource() {
     DefaultSurfaceTextureCaptureSourceFactory surface = new DefaultSurfaceTextureCaptureSourceFactory(logger, meetingModel().eglCoreFactory);
     CameraCaptureSource cameraCaptureSource = new DefaultCameraCaptureSource(getReactApplicationContext(), logger, surface);
+    meetingModel().setCameraCaptureSource(cameraCaptureSource);
     try {
-      CameraManager cameraManager = (CameraManager) getReactApplicationContext().getSystemService(Context.CAMERA_SERVICE);
-      List<MediaDevice> mediaDevices = MediaDevice.Companion.listVideoDevices(cameraManager);
-      MediaDevice mediaDevice = Stream.of(mediaDevices)
-        .filter(it -> it.getType() == MediaDeviceType.VIDEO_FRONT_CAMERA)
-        .findFirstOrElse(Stream.of(mediaDevices).findFirst().orElseThrow());
-      cameraCaptureSource.setDevice(mediaDevice);
-      assert cameraCaptureSource.getDevice() != null;
-      List<VideoCaptureFormat> formats = MediaDevice.Companion.listSupportedVideoCaptureFormats(cameraManager, cameraCaptureSource.getDevice());
-      Stream.of(formats)
-        .filter(it -> it.getHeight() <= MAX_VIDEO_FORMAT_HEIGHT)
-        .findFirst()
-        .ifPresent(it -> {
-          Log.d(TAG, "choose video format " + it.getWidth() + "x" + it.getHeight());
-          cameraCaptureSource.setFormat(new VideoCaptureFormat(it.getWidth(), it.getHeight(), MAX_VIDEO_FORMAT_FPS));
-        });
-    } catch (Exception e) {
-      Log.e(TAG, "Media devices not found");
+      selectDefaultVideoDevice();
+    } catch (NoSuchElementException e) {
+      Log.e(TAG, "None of video devices are available");
     }
-    return cameraCaptureSource;
+  }
+
+  private void selectDefaultVideoDevice() throws NoSuchElementException {
+    Context context = getReactApplicationContext();
+    CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+    List<MediaDevice> mediaDevices = MediaDevice.Companion.listVideoDevices(cameraManager);
+
+    MediaDevice priorityDevice = Stream.of(mediaDevices).findFirst().orElseThrow();
+
+    MediaDevice mediaDevice = Stream.of(mediaDevices)
+      .filter(it -> it.getType() == MediaDeviceType.VIDEO_FRONT_CAMERA)
+      .findFirstOrElse(priorityDevice);
+
+    assert mediaDevice != null;
+    boolean success = meetingModel().selectVideoDevice(context, mediaDevice);
+    if (success) {
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_VIDEO_DEVICE_CHANGED, mediaDevice);
+    }
   }
 
   @ReactMethod
   public void leaveCurrentMeeting() {
-    sendMeetingStateEvent(getReactApplicationContext(), "meeting_end");
+    sendMeetingStateEvent(getReactApplicationContext(), MEETING_END);
     meetingModel().endMeeting();
   }
 
@@ -271,6 +278,25 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   }
 
   @ReactMethod
+  public void listAudioDevices(Promise promise) {
+    promise.resolve(meetingModel().listAudioDevices());
+  }
+
+  @ReactMethod
+  public void selectAudioDevice(ReadableMap map) {
+    String label = map.getString("label");
+    int type = map.getInt("type");
+    assert label != null;
+    assert type >= 0;
+    MediaDeviceType mediaType = MediaDeviceType.values()[type];
+    MediaDevice mediaDevice = new MediaDevice(label, mediaType, null);
+    boolean success = meetingModel().selectAudioDevice(mediaDevice);
+    if (success) {
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_AUDIO_DEVICE_CHANGED, mediaDevice);
+    }
+  }
+
+  @ReactMethod
   public void onMyAudio() {
     meetingModel().onOffAudio(true);
     sendAudioStatusEvent(meetingModel().getLocalAttendee(), true);
@@ -298,19 +324,43 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   }
 
   @ReactMethod
-  public void onOffMyVideo() {
-    meetingModel().onOffVideo();
+  public void listVideoDevices(Promise promise) {
+    promise.resolve(meetingModel().listVideoDevices(getReactApplicationContext()));
   }
 
   @ReactMethod
-  public void switchMyCamera() {
+  public void selectVideoDevice(ReadableMap map) {
+    String label = map.getString("label");
+    int type = map.getInt("type");
+    assert label != null;
+    assert type >= 0;
+    MediaDeviceType mediaType = MediaDeviceType.values()[type];
+    MediaDevice mediaDevice = new MediaDevice(label, mediaType, null);
+    boolean success = meetingModel().selectVideoDevice(getReactApplicationContext(), mediaDevice);
+    if (success) {
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_VIDEO_DEVICE_CHANGED, mediaDevice);
+    }
+  }
+
+  @ReactMethod
+  public void switchCamera() {
     meetingModel().switchCamera();
+  }
+
+  @ReactMethod
+  public void onOffMyVideo() {
+    meetingModel().onOffVideo();
   }
 
   @Override
   public void onAudioSessionStarted(boolean reconnecting) {
     Log.d(TAG, "onAudioSessionStarted: ");
-    meetingModel().initMediaDevice();
+    List<MediaDevice> audioDevices = meetingModel().listAudioDevices();
+    boolean success = meetingModel().selectLatestAudioDevice(audioDevices);
+    if (success) {
+      MediaDevice mediaDevice = Stream.of(audioDevices).filter(it -> it.getType() != MediaDeviceType.OTHER).findLast().get();
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_AUDIO_DEVICE_CHANGED, mediaDevice);
+    }
   }
 
   @Override
@@ -322,7 +372,11 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onAudioDeviceChanged(@NotNull List<MediaDevice> list) {
-    meetingModel().selectAudioDevice(list);
+    boolean success = meetingModel().selectLatestAudioDevice(list);
+    if (success) {
+      MediaDevice mediaDevice = Stream.of(list).filter(it -> it.getType() != MediaDeviceType.OTHER).findLast().get();
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_AUDIO_DEVICE_CHANGED, mediaDevice);
+    }
   }
 
   @Override
@@ -334,7 +388,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       );
       RosterAttendee newAttendee = meetingModel().getAttendee(it.getAttendeeId());
       if (meetingModel().isLocal(newAttendee.getAttendeeId())) {
-        sendMeetingStateEvent(getReactApplicationContext(), "meeting_ready");
+        sendMeetingStateEvent(getReactApplicationContext(), MEETING_READY);
       }
       Log.d(TAG, "attendee joined: " + it.getAttendeeId());
       boolean isCameraOn = meetingModel().isCameraAttendeeOn(it.getAttendeeId());
@@ -433,7 +487,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onHostPause() {
-    Log.d(TAG, "onHostPause: " );
+    Log.d(TAG, "onHostPause: ");
     meetingModel().pauseMeeting();
   }
 

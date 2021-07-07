@@ -1,5 +1,6 @@
 package com.reactnativechimesdk;
 
+import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -17,6 +18,11 @@ public class EventEmitter {
   public static final String MEETING_AUDIO_STATUS_CHANGE = "onSinkMeetingAudioStatusChange";
   public static final String MEETING_VIDEO_STATUS_CHANGE = "onSinkMeetingVideoStatusChange";
 
+  public static final String MEETING_READY = "meeting_ready";
+  public static final String MEETING_END = "meeting_end";
+  public static final String MEETING_AUDIO_DEVICE_CHANGED = "audio_device_changed";
+  public static final String MEETING_VIDEO_DEVICE_CHANGED = "video_device_Changed";
+
   public static final String KEY_EVENT = "event";
   public static final String KEY_DES = "des";
   public static final String KEY_USER_NAME = "userName";
@@ -24,6 +30,8 @@ public class EventEmitter {
   public static final String KEY_VIDEO_STATUS = "videoStatus";
   public static final String KEY_AUDIO_STATUS = "audioStatus";
   public static final String KEY_SHARE_STATUS = "shareStatus";
+  public static final String KEY_MEDIA_DEVICE_TYPE = "mediaDeviceType";
+  public static final String KEY_MEDIA_DEVICE_LABEL = "mediaDeviceLabel";
 
   public static final int SHARE_STATUS_START = 1;
   public static final int SHARE_STATUS_STOP = 4;
@@ -59,6 +67,14 @@ public class EventEmitter {
     map.putBoolean(KEY_AUDIO_STATUS, attendee.isMuted());
     map.putBoolean(KEY_VIDEO_STATUS, isCameraOn);
     map.putInt(KEY_SHARE_STATUS, shareStatus);
+    sendEvent(context, map);
+  }
+
+  public static void sendMediaDeviceChangeEvent(ReactContext context, String event, MediaDevice mediaDevice) {
+    WritableMap map = new WritableNativeMap();
+    map.putString(KEY_EVENT, event);
+    map.putString(KEY_MEDIA_DEVICE_LABEL, mediaDevice.getLabel());
+    map.putInt(KEY_MEDIA_DEVICE_TYPE, mediaDevice.getType().ordinal());
     sendEvent(context, map);
   }
 

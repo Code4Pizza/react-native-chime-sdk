@@ -21,6 +21,14 @@ export const leaveCurrentMeeting = () => {
   ChimeSdk.leaveCurrentMeeting();
 };
 
+export const listAudioDevices = async () => {
+  return await ChimeSdk.listAudioDevices();
+};
+
+export const selectAudioDevice = (mediaDevice: object) => {
+  ChimeSdk.selectAudioDevice(mediaDevice);
+};
+
 export const onMyAudio = () => {
   ChimeSdk.onMyAudio();
 };
@@ -29,11 +37,21 @@ export const offMyAudio = () => {
   ChimeSdk.offMyAudio();
 };
 
+export const listVideoDevices = async () => {
+  return await ChimeSdk.listVideoDevices();
+};
+
+export const selectVideoDevice = (mediaDevice: object) => {
+  ChimeSdk.selectVideoDevice(mediaDevice);
+};
+
+export const switchCamera = () => {
+  ChimeSdk.switchCamera();
+};
+
 export const onOffMyVideo = () => {
   ChimeSdk.onOffMyVideo();
 };
-
-export const switchCamera = () => {};
 
 export const getParticipants = () => {
   return new Promise((res) => {
