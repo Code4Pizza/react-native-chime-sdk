@@ -199,7 +199,45 @@ class MeetingModule: NSObject {
         }
     }
 
+    @objc(getListAudioDevices:)
+    func getListAudioDevices(completion: ([[String:Any]]) -> Void) {
+        if let activeMeeting = self.activeMeeting {
+            var list = [[String:Any]]()
+            for item in activeMeeting.audioDevices {
+                list.append([
+                    "label": item.label,
+                    "type": item.type.rawValue
+                ])
+            }
+            completion(list)
+        }
+    }
     
+    @objc(getListVideoDevices:)
+    func getListVideoDevices(completion: ([[String:Any]]) -> Void) {
+        if let _ = self.activeMeeting {
+            var list = [[String:Any]]()
+            for item in MediaDevice.listVideoDevices() {
+                list.append([
+                    "label": item.label,
+                    "type": item.type.rawValue
+                ])
+            }
+            completion(list)
+        }
+    }
+    @objc(selectAudioDevice:)
+    func selectAudioDevice(mediaDevice: [String:Any]) {
+        if let activeMeeting = self.activeMeeting {
+            activeMeeting.selectAudioDevice(mediaDevice)
+        }
+    }
+    @objc(selectVideoDevice:)
+    func selectVideoDevice(mediaDevice: [String:Any]) {
+        if let activeMeeting = self.activeMeeting {
+            activeMeeting.selectVideoDevice(mediaDevice)
+        }
+    }
     func selectDevice(_ meeting: MeetingModel, completion: @escaping (Bool) -> Void) {
         // This is needed to discover bluetooth devices
         configureAudioSession()
@@ -207,6 +245,15 @@ class MeetingModule: NSObject {
         self.activeMeeting = meeting
         completion(true)
         MeetingModule.shared().deviceSelected(meeting.deviceSelectionModel)
+        if MediaDevice.listVideoDevices().count > 0,
+           let videoDevice = meeting.deviceSelectionModel.cameraCaptureSource.device
+        {
+            MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+                "event": "video_device_Changed",
+                "mediaDeviceLabel": videoDevice.label,
+                "mediaDeviceType": videoDevice.type.rawValue
+            ])
+        }
 //        self.meetingPresenter.showDeviceSelectionView(meetingModel: meeting) { success in
 //            if success {
 //                self.activeMeeting = meeting

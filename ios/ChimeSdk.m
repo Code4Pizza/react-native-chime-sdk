@@ -35,6 +35,26 @@ RCT_EXPORT_METHOD(getParticipants:(RCTResponseSenderBlock)callback)
         callback(@[list]);
     }];
 }
+RCT_EXPORT_METHOD(listAudioDevices:(RCTResponseSenderBlock)callback)
+{
+    [[MeetingModule shared] getListAudioDevices:^(NSArray *list) {
+        callback(@[list]);
+    }];
+}
+RCT_EXPORT_METHOD(listVideoDevices:(RCTResponseSenderBlock)callback)
+{
+    [[MeetingModule shared] getListVideoDevices:^(NSArray *list) {
+        callback(@[list]);
+    }];
+}
+RCT_EXPORT_METHOD(selectAudioDevice:(NSDictionary *) mediaDevice)
+{
+    [[MeetingModule shared] selectAudioDevice:mediaDevice];
+}
+RCT_EXPORT_METHOD(selectVideoDevice:(NSDictionary *) mediaDevice)
+{
+    [[MeetingModule shared] selectVideoDevice:mediaDevice];
+}
 RCT_EXPORT_METHOD(getUserInfo:(NSString *) userId callback:(RCTResponseSenderBlock)callback)
 {
     [[MeetingModule shared] getUserInfo:userId completion:^(NSDictionary *object) {

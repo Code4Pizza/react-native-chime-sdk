@@ -43,6 +43,29 @@ export const getParticipants = () => {
   });
 };
 
+export const listAudioDevices = () => {
+  return new Promise((res) => {
+    ChimeSdk.listAudioDevices((listDevices: any) => {
+      return res(listDevices);
+    });
+  });
+};
+
+export const listVideoDevices = () => {
+  return new Promise((res) => {
+    ChimeSdk.listVideoDevices((listDevices: any) => {
+      return res(listDevices);
+    });
+  });
+};
+export const selectAudioDevice = (mediaDevice: object) => {
+  ChimeSdk.selectAudioDevice(mediaDevice);
+};
+
+export const selectVideoDevice = (mediaDevice: object) => {
+  ChimeSdk.selectVideoDevice(mediaDevice);
+};
+
 export const getUserInfo = (userID: string) => {
   return new Promise((res) => {
     ChimeSdk.getUserInfo(userID, (info: any) => {

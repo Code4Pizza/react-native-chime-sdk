@@ -204,6 +204,48 @@ class MeetingModel: NSObject {
 
     func chooseAudioDevice(_ audioDevice: MediaDevice) {
         currentMeetingSession.audioVideo.chooseAudioDevice(mediaDevice: audioDevice)
+        MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+            "event": "audio_device_changed",
+            "mediaDeviceLabel": audioDevice.label,
+            "mediaDeviceType": audioDevice.type.rawValue
+        ])
+    }
+    
+    func selectAudioDevice(_ mediaDevice: [String:Any]) {
+        if audioDevices.count > 0 {
+            let label = mediaDevice["label"] as! String
+            let type = mediaDevice["type"] as! Int
+            
+            var audioDevice:MediaDevice? = nil
+            for item in audioDevices {
+                if item.type.rawValue == type && item.label == label {
+                    audioDevice = item
+                }
+            }
+            if audioDevice != nil {
+                self.chooseAudioDevice(audioDevice!)
+            }
+        }
+    }
+    
+    func selectVideoDevice(_ mediaDevice: [String:Any]) {
+        let label = mediaDevice["label"] as! String
+        let type = mediaDevice["type"] as! Int
+        
+        var videoDevice:MediaDevice? = nil
+        for item in MediaDevice.listVideoDevices() {
+            if item.type.rawValue == type && item.label == label {
+                videoDevice = item
+            }
+        }
+        if videoDevice != nil {
+            self.videoModel.customSource.device = videoDevice
+            MeetingModule.shared().eventEmitter?.sendEvent(withName: "onChimeMeetingEvent", body: [
+                "event": "video_device_Changed",
+                "mediaDeviceLabel": videoDevice!.label,
+                "mediaDeviceType": videoDevice!.type.rawValue
+            ])
+        }
     }
 
     func sendDataMessage(_ message: String) {
@@ -641,11 +683,12 @@ extension MeetingModel: VideoTileObserver {
                 }
                 videoModel.addRemoteVideoTileState(tileState, completion: { success in
                     if success {
-                        if self.activeMode == .video {                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                        if self.activeMode == .video {
+                            self.pauseRemoteVideo(videoTileState: tileState)
                             self.videoModel.videoUpdatedHandler?()
                         } else {
                             // Currently not in the video view, no need to render the video tile
-                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                            self.pauseRemoteVideo(videoTileState: tileState)
                         }
                     } else {
                         self.logger.info(msg: "Cannot add more video tile tileId: \(tileState.tileId)")
@@ -659,11 +702,11 @@ extension MeetingModel: VideoTileObserver {
 //                            if !self.videoModel.isRemoteVideoDisplaying(tileId: tileState.tileId) {
 //                                self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
 //                            }
-                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                            self.pauseRemoteVideo(videoTileState: tileState)
                             self.videoModel.videoUpdatedHandler?()
                         } else {
                             // Currently not in the video view, no need to render the video tile
-                            self.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: tileState.tileId)
+                            self.pauseRemoteVideo(videoTileState: tileState)
                         }
                     } else {
                         self.logger.info(msg: "Cannot add more video tile tileId: \(tileState.tileId)")
@@ -686,7 +729,27 @@ extension MeetingModel: VideoTileObserver {
             }
         }
     }
-
+func pauseRemoteVideo(videoTileState: VideoTileState) {
+    let queue = MeetingModule.shared().getTileQueue(videoTileState.tileId)
+    let operationId = UUID().uuidString
+    let operation = SynchronousOperation { _ in
+        if (queue.lastOperationId == operationId) {
+            Thread.sleep(forTimeInterval: 1.5)
+            if (queue.lastOperationId == operationId) {
+                print("+++ thuc thi pause")
+                MeetingModule.shared().activeMeeting?.currentMeetingSession.audioVideo.pauseRemoteVideoTile(tileId: videoTileState.tileId)
+            }
+            else {
+                //print("+++ bo qua pause")
+            }
+        }
+        else {
+            //print("+++ bo qua pause")
+        }
+    }
+    operation.name = operationId
+    queue.addOperation(operation)
+}
     func videoTileDidRemove(tileState: VideoTileState) {
         logger.error(msg: "Attempting to remove video tile tileId: \(tileState.tileId)" +
             " attendeeId: \(tileState.attendeeId)")

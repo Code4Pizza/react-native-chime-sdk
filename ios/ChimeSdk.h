@@ -17,6 +17,10 @@ typedef void (^RCTPromiseResolveObjectBlock)(NSDictionary *object);
 - (void) onOffMyVideo;
 - (void) getParticipants:(RCTPromiseResolveArrayBlock)resolve;
 - (void) getUserInfo:(NSString *)userId completion:(RCTPromiseResolveObjectBlock)resolve;
+- (void) getListAudioDevices:(RCTPromiseResolveArrayBlock)resolve;
+- (void) getListVideoDevices:(RCTPromiseResolveArrayBlock)resolve;
+- (void) selectAudioDevice: (NSDictionary *) mediaDevice;
+- (void) selectVideoDevice: (NSDictionary *) mediaDevice;
 @end
 
 @interface ChimeSdk : RCTEventEmitter <RCTBridgeModule>
