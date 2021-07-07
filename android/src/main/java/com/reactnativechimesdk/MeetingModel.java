@@ -203,17 +203,17 @@ public class MeetingModel {
    * select latest audio device when init meeting session or list media devices changed
    * @param list audio devices
    */
-  public void selectLatestAudioDevice(List<MediaDevice> list) {
+  public boolean selectLatestAudioDevice(List<MediaDevice> list) {
     if (audioVideo == null) {
-      return;
+      return false;
     }
-    Stream.of(list)
+    return Stream.of(list)
       .filter(it -> it.getType() != MediaDeviceType.OTHER)
       .findLast()
       .executeIfPresent(it -> {
         Log.d("ChimeSdkModule", "choose audio device " + it.getType());
         audioVideo.chooseAudioDevice(it);
-      });
+      }).isPresent();
   }
 
   /**

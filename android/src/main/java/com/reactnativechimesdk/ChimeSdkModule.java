@@ -84,6 +84,7 @@ import static com.reactnativechimesdk.EventEmitter.MEETING_VIDEO_DEVICE_CHANGED;
 import static com.reactnativechimesdk.EventEmitter.MEETING_VIDEO_STATUS_CHANGE;
 import static com.reactnativechimesdk.EventEmitter.SHARE_STATUS_START;
 import static com.reactnativechimesdk.EventEmitter.SHARE_STATUS_STOP;
+import static com.reactnativechimesdk.EventEmitter.sendMediaDeviceChangeEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingStateEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingUserEvent;
 import static com.reactnativechimesdk.EventEmitter.sendMeetingUserShareEvent;
@@ -97,8 +98,6 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   private static final String TAG = "ChimeSdkModule";
   private static final ConsoleLogger logger = new ConsoleLogger(LogLevel.INFO);
-
-
 
   private final int WEBRTC_PERMISSION_REQUEST_CODE = 1030;
   private final List<String> WEBRTC_PERM = Arrays.asList(MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, CAMERA);
@@ -224,7 +223,7 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     }
   }
 
-  private void selectDefaultVideoDevice() {
+  private void selectDefaultVideoDevice() throws NoSuchElementException {
     Context context = getReactApplicationContext();
     CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
     List<MediaDevice> mediaDevices = MediaDevice.Companion.listVideoDevices(cameraManager);
@@ -235,9 +234,10 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
       .filter(it -> it.getType() == MediaDeviceType.VIDEO_FRONT_CAMERA)
       .findFirstOrElse(priorityDevice);
 
+    assert mediaDevice != null;
     boolean success = meetingModel().selectVideoDevice(context, mediaDevice);
     if (success) {
-      sendMeetingStateEvent(getReactApplicationContext(), MEETING_VIDEO_DEVICE_CHANGED);
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_VIDEO_DEVICE_CHANGED, mediaDevice);
     }
   }
 
@@ -289,9 +289,10 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     assert label != null;
     assert type >= 0;
     MediaDeviceType mediaType = MediaDeviceType.values()[type];
-    boolean success = meetingModel().selectAudioDevice(new MediaDevice(label, mediaType, null));
+    MediaDevice mediaDevice = new MediaDevice(label, mediaType, null);
+    boolean success = meetingModel().selectAudioDevice(mediaDevice);
     if (success) {
-      EventEmitter.sendMeetingStateEvent(getReactApplicationContext(), MEETING_AUDIO_DEVICE_CHANGED);
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_AUDIO_DEVICE_CHANGED, mediaDevice);
     }
   }
 
@@ -334,9 +335,10 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
     assert label != null;
     assert type >= 0;
     MediaDeviceType mediaType = MediaDeviceType.values()[type];
-    boolean success = meetingModel().selectVideoDevice(getReactApplicationContext(), new MediaDevice(label, mediaType, null));
+    MediaDevice mediaDevice = new MediaDevice(label, mediaType, null);
+    boolean success = meetingModel().selectVideoDevice(getReactApplicationContext(), mediaDevice);
     if (success) {
-      EventEmitter.sendMeetingStateEvent(getReactApplicationContext(), MEETING_VIDEO_DEVICE_CHANGED);
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_VIDEO_DEVICE_CHANGED, mediaDevice);
     }
   }
 
@@ -353,7 +355,12 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   @Override
   public void onAudioSessionStarted(boolean reconnecting) {
     Log.d(TAG, "onAudioSessionStarted: ");
-    meetingModel().initAudioDevice();
+    List<MediaDevice> audioDevices = meetingModel().listAudioDevices();
+    boolean success = meetingModel().selectLatestAudioDevice(audioDevices);
+    if (success) {
+      MediaDevice mediaDevice = Stream.of(audioDevices).filter(it -> it.getType() != MediaDeviceType.OTHER).findLast().get();
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_AUDIO_DEVICE_CHANGED, mediaDevice);
+    }
   }
 
   @Override
@@ -365,7 +372,11 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
 
   @Override
   public void onAudioDeviceChanged(@NotNull List<MediaDevice> list) {
-    meetingModel().selectLatestAudioDevice(list);
+    boolean success = meetingModel().selectLatestAudioDevice(list);
+    if (success) {
+      MediaDevice mediaDevice = Stream.of(list).filter(it -> it.getType() != MediaDeviceType.OTHER).findLast().get();
+      sendMediaDeviceChangeEvent(getReactApplicationContext(), MEETING_AUDIO_DEVICE_CHANGED, mediaDevice);
+    }
   }
 
   @Override
