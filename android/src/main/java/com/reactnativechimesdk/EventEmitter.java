@@ -30,6 +30,8 @@ public class EventEmitter {
   public static final String KEY_VIDEO_STATUS = "videoStatus";
   public static final String KEY_AUDIO_STATUS = "audioStatus";
   public static final String KEY_SHARE_STATUS = "shareStatus";
+  public static final String KEY_TYPE = "type";
+  public static final String KEY_LABEL = "label";
   public static final String KEY_MEDIA_DEVICE_TYPE = "mediaDeviceType";
   public static final String KEY_MEDIA_DEVICE_LABEL = "mediaDeviceLabel";
 

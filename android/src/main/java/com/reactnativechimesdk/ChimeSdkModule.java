@@ -35,7 +35,6 @@ import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel;
 import com.annimon.stream.Stream;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.LifecycleEventListener;
-import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -70,6 +69,8 @@ import static android.Manifest.permission.RECORD_AUDIO;
 import static android.text.format.Formatter.formatShortFileSize;
 import static androidx.core.content.ContextCompat.checkSelfPermission;
 import static com.reactnativechimesdk.EventEmitter.KEY_AUDIO_STATUS;
+import static com.reactnativechimesdk.EventEmitter.KEY_LABEL;
+import static com.reactnativechimesdk.EventEmitter.KEY_TYPE;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_ID;
 import static com.reactnativechimesdk.EventEmitter.KEY_USER_NAME;
 import static com.reactnativechimesdk.EventEmitter.KEY_VIDEO_STATUS;
@@ -278,8 +279,15 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   }
 
   @ReactMethod
-  public void listAudioDevices(Promise promise) {
-    promise.resolve(meetingModel().listAudioDevices());
+  public void listAudioDevices(Callback callback) {
+    WritableArray array = new WritableNativeArray();
+    Stream.of(meetingModel().listAudioDevices()).forEach(it -> {
+      WritableMap map = new WritableNativeMap();
+      map.putInt(KEY_TYPE, it.getType().ordinal());
+      map.putString(KEY_LABEL, it.getLabel());
+      array.pushMap(map);
+    });
+    callback.invoke(array);
   }
 
   @ReactMethod
@@ -324,8 +332,15 @@ public class ChimeSdkModule extends ReactContextBaseJavaModule
   }
 
   @ReactMethod
-  public void listVideoDevices(Promise promise) {
-    promise.resolve(meetingModel().listVideoDevices(getReactApplicationContext()));
+  public void listVideoDevices(Callback callback) {
+    WritableArray array = new WritableNativeArray();
+    Stream.of(meetingModel().listVideoDevices(getReactApplicationContext())).forEach(it -> {
+      WritableMap map = new WritableNativeMap();
+      map.putInt(KEY_TYPE, it.getType().ordinal());
+      map.putString(KEY_LABEL, it.getLabel());
+      array.pushMap(map);
+    });
+    callback.invoke(array);
   }
 
   @ReactMethod

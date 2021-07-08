@@ -16,6 +16,7 @@ import com.annimon.stream.Stream;
 import com.facebook.react.bridge.ReactContext;
 import com.reactnativechimesdk.R;
 
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static com.reactnativechimesdk.MeetingModel.meetingModel;
@@ -24,8 +25,11 @@ public class ChimeView extends FrameLayout {
 
   private static final String TAG = "ChimeView";
 
+  private final Handler mainHandler = new Handler();
+
   private DefaultVideoRenderView renderView;
   private String attendeeId;
+  private ScheduledFuture<?> scheduledFuture;
 
   public ChimeView(@NonNull Context context) {
     this(context, null);
@@ -65,15 +69,17 @@ public class ChimeView extends FrameLayout {
       .findSingle()
       .executeIfAbsent(() -> setVisibility(GONE))
       .executeIfPresent(v -> {
-        meetingModel().executorService.schedule(() -> {
-          if (v.getVideoTileState().getPauseState() == VideoPauseState.PausedByUserRequest) {
-            meetingModel().getAudioVideo().resumeRemoteVideoTile(v.getVideoTileState().getTileId());
+        scheduledFuture = meetingModel().executorService.schedule(() -> {
+          try {
+            if (v.getVideoTileState().getPauseState() == VideoPauseState.PausedByUserRequest) {
+              meetingModel().getAudioVideo().resumeRemoteVideoTile(v.getVideoTileState().getTileId());
+            }
+            meetingModel().getAudioVideo().bindVideoView(renderView, v.getVideoTileState().getTileId());
+          } catch (Exception e) {
+            e.printStackTrace();
           }
-          meetingModel().getAudioVideo().bindVideoView(renderView, v.getVideoTileState().getTileId());
-        }, 500, TimeUnit.MILLISECONDS);
-        new Handler().postDelayed(() -> {
-          setVisibility(VISIBLE);
-        }, 1500);
+          mainHandler.post(() -> setVisibility(VISIBLE));
+        }, 200, TimeUnit.MILLISECONDS);
       });
   }
 
@@ -83,8 +89,24 @@ public class ChimeView extends FrameLayout {
       .findSingle()
       .executeIfAbsent(() -> setVisibility(GONE))
       .executeIfPresent(v -> {
-        setVisibility(GONE);
-        meetingModel().getAudioVideo().pauseRemoteVideoTile(v.getVideoTileState().getTileId());
+        scheduledFuture = meetingModel().executorService.schedule(() -> {
+          try {
+            meetingModel().getAudioVideo().pauseRemoteVideoTile(v.getVideoTileState().getTileId());
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+          mainHandler.post(() -> setVisibility(GONE));
+        }, 200, TimeUnit.MILLISECONDS);
       });
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    super.onDetachedFromWindow();
+    if (scheduledFuture != null) {
+      scheduledFuture.cancel(true);
+      scheduledFuture = null;
+    }
+    mainHandler.removeCallbacksAndMessages(null);
   }
 }

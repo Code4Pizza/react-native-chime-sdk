@@ -42,8 +42,8 @@ public class MeetingModel {
   private MeetingModel() {
   }
 
-  public final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
   public final EglCoreFactory eglCoreFactory = new DefaultEglCoreFactory();
+  public ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
   private CameraCaptureSource cameraCaptureSource;
   private AudioVideoFacade audioVideo;
@@ -248,13 +248,17 @@ public class MeetingModel {
   }
 
   public boolean selectVideoDevice(Context context, MediaDevice mediaDevice) {
-    if (cameraCaptureSource == null) {
+    if (cameraCaptureSource == null || audioVideo == null) {
       return false;
     }
-    cameraCaptureSource.setDevice(mediaDevice);
-    Log.d("ChimeSdkModule", "choose video device " + mediaDevice.getType() + " - " + mediaDevice.getLabel());
-    selectDefaultVideoFormat(context);
-    return true;
+    return Stream.of(listVideoDevices(context))
+      .filter(it -> it.getType() == mediaDevice.getType() && it.getLabel().equals(mediaDevice.getLabel()))
+      .findFirst()
+      .executeIfPresent(device -> {
+        Log.d("ChimeSdkModule", "choose video device " + device.getType() + " - " + device.getLabel());
+        cameraCaptureSource.setDevice(device);
+        selectDefaultVideoFormat(context);
+      }).isPresent();
   }
 
   private void selectDefaultVideoFormat(Context context) {
@@ -284,16 +288,16 @@ public class MeetingModel {
     if (isCameraLocalOn()) {
       audioVideo.stopLocalVideo();
     } else {
-      audioVideo.startLocalVideo(cameraCaptureSource);
       cameraCaptureSource.start();
+      audioVideo.startLocalVideo(cameraCaptureSource);
     }
   }
 
   public void switchCamera() {
-    if (audioVideo == null) {
+    if (cameraCaptureSource == null) {
       return;
     }
-    audioVideo.switchCamera();
+    cameraCaptureSource.switchCamera();
   }
 
   private void cleanup() {
